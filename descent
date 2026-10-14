@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="de" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flugzeug Sinkflug & Bremsweg Rechner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 h-full flex flex-col">
+
+    <header class="bg-slate-800 border-b border-slate-700 py-4 px-6 shadow-md">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <svg class="w-8 h-8 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                </svg>
+                <h1 class="text-xl font-bold tracking-tight text-white">AeroCalc: Sinkflug & Bremsweg Simulation</h1>
+            </div>
+            <span class="text-xs px-3 py-1 bg-sky-500/20 text-sky-300 rounded-full font-medium border border-sky-500/30">Live Telemetrie & Physik-Modell</span>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-y-auto">
+        
+        <!-- Input & Results Panel (Left Column) -->
+        <div class="lg:col-span-5 space-y-6 flex flex-col">
+            <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700 shadow-xl space-y-4">
+                <h2 class="text-lg font-semibold text-sky-400 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Parameter-Eingabe
+                </h2>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Starthöhe (m)</label>
+                        <input type="number" id="startHeight" value="3000" min="100" max="15000" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-sky-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Startgeschwindigkeit (m/s)</label>
+                        <input type="number" id="startSpeed" value="100" min="15" max="300" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-sky-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Sinkrate (m/s)</label>
+                        <input type="number" id="descentRate" value="15" min="1" max="100" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-sky-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Bedenkzeit (s)</label>
+                        <input type="number" id="reactionTime" value="1.0" min="0" max="10" step="0.1" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-sky-500">
+                    </div>
+                </div>
+
+                <div class="pt-2 border-t border-slate-700/60">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-xs font-medium text-slate-300">Abfangbogen berücksichtigen</label>
+                        <input type="checkbox" id="enableFlare" checked class="w-4 h-4 text-sky-600 bg-slate-900 border-slate-700 rounded focus:ring-sky-500">
+                    </div>
+                    <div id="flareParams" class="grid grid-cols-2 gap-4 mt-2">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Max. Normalbeschleunigung (g)</label>
+                            <input type="number" id="flareG" value="1.5" min="1.0" max="5.0" step="0.1" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-sky-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Ziel-Sinkrate nach Abfangbogen (m/s)</label>
+                            <input type="number" id="targetDescentRate" value="0.5" min="0" max="5" step="0.1" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-sky-500">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Bremsverzögerung nach Aufsetzen/Abfangen (m/s²)</label>
+                    <input type="number" id="brakingDecel" value="2.0" min="0.1" max="10" step="0.1" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-sky-500">
+                </div>
+
+                <button onclick="calculateAndSimulate()" class="w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-medium py-2.5 px-4 rounded-xl shadow-lg transition-all duration-200">
+                    Simulation starten & Berechnen
+                </button>
+            </div>
+
+            <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700 shadow-xl flex-1 flex flex-col justify-between">
+                <h3 class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Ergebnis-Zusammenfassung</h3>
+                <div class="space-y-3" id="resultsSummary">
+                    <div class="flex justify-between items-center bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/50">
+                        <span class="text-xs text-slate-400">Gesamtweg horizontal:</span>
+                        <span id="resTotalDist" class="text-sm font-bold text-sky-400">- m</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/50">
+                        <span class="text-xs text-slate-400">Weg während Bedenkzeit (1s):</span>
+                        <span id="resReactionDist" class="text-sm font-semibold text-white">- m</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/50">
+                        <span class="text-xs text-slate-400">Weg im normalen Sinkflug:</span>
+                        <span id="resDescentDist" class="text-sm font-semibold text-white">- m</span>
+                    </div>
+                    <div id="resFlareRow" class="flex justify-between items-center bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/50">
+                        <span class="text-xs text-slate-400">Weg im Abfangbogen:</span>
+                        <span id="resFlareDist" class="text-sm font-semibold text-white">- m</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/50">
+                        <span class="text-xs text-slate-400">Bremsdistanz:</span>
+                        <span id="resBrakeDist" class="text-sm font-semibold text-white">- m</span>
+                    </div>
+                </div>
+
+                <!-- Simulation Control buttons -->
+                <div class="mt-4 flex gap-3">
+                    <button id="playBtn" onclick="togglePlayback()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2 px-3 rounded-lg text-sm transition-colors flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Abspielen (Live)
+                    </button>
+                    <button onclick="resetPlayback()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium py-2 px-3 rounded-lg text-sm transition-colors">
+                        Zurücksetzen
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visualization Canvas / Chart (Right Column) -->
+        <div class="lg:col-span-7 bg-slate-800 rounded-2xl p-5 border border-slate-700 shadow-xl flex flex-col h-[550px] lg:h-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-sky-400 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    Trajektorie (X-Y Ebene) & Live Telemetrie
+                </h2>
+                <div id="liveTelemetry" class="text-xs font-mono bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-700 text-sky-300">
+                    X: 0.0m | H: 0.0m | V: 0.0 m/s
+                </div>
+            </div>
+
+            <div class="flex-1 relative w-full h-full min-h-[350px]">
+                <canvas id="trajectoryChart"></canvas>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        let chartInstance = null;
+        let simData = null;
+        let animIndex = 0;
+        let isPlaying = false;
+        let animTimer = null;
+
+        // Toggle visibility of flare parameter options
+        document.getElementById('enableFlare').addEventListener('change', function() {
+            document.getElementById('flareParams').style.display = this.checked ? 'grid' : 'none';
+        });
+
+        function calculateTrajectory() {
+            const h0 = parseFloat(document.getElementById('startHeight').value);
+            const v0 = parseFloat(document.getElementById('startSpeed').value); // m/s directly
+            const descentRate = parseFloat(document.getElementById('descentRate').value);
+            const reactionTime = parseFloat(document.getElementById('reactionTime').value);
+            const enableFlare = document.getElementById('enableFlare').checked;
+            const flareG = parseFloat(document.getElementById('flareG').value);
+            const targetDescentRate = parseFloat(document.getElementById('targetDescentRate').value);
+            const brakingDecel = parseFloat(document.getElementById('brakingDecel').value);
+
+            let points = [];
+            let currentX = 0;
+            let currentY = h0;
+            let currentV = v0;
+
+            // Phase 1: Reaction time (constant speed and altitude during reaction time)
+            let reactionDist = v0 * reactionTime;
+            let dt = 0.1; // simulation step in seconds
+
+            let timeInReaction = 0;
+            while (timeInReaction < reactionTime) {
+                points.push({ x: currentX, y: currentY, phase: 'Bedenkzeit', v: currentV, h: currentY });
+                currentX += v0 * dt;
+                timeInReaction += dt;
+            }
+
+            let startDescentY = currentY;
+
+            // 2. Steady descent phase
+            let flareAltitude = 0;
+            let radius = 0;
+            if (enableFlare) {
+                const g = 9.81;
+                radius = (v0 * v0) / (g * (flareG - 1));
+                let sinTheta = Math.min(1, Math.max(0, descentRate / v0));
+                let theta = Math.asin(sinTheta);
+                flareAltitude = radius * (1 - Math.cos(theta));
+            }
+
+            let targetYForFlare = enableFlare ? flareAltitude : 0;
+            let descentDist = 0;
+
+            while (currentY > targetYForFlare && currentY > 0) {
+                points.push({ x: currentX, y: currentY, phase: 'Sinkflug', v: currentV, h: currentY });
+                let dx = v0 * dt;
+                let dy = descentRate * dt;
+                currentX += dx;
+                currentY -= dy;
+                descentDist += dx;
+            }
+
+            // 3. Flare / Abfangbogen phase
+            let flareDist = 0;
+            if (enableFlare && currentY > 0) {
+                let sinTheta = Math.min(1, Math.max(0, descentRate / v0));
+                let thetaStart = Math.asin(sinTheta);
+                let g = 9.81;
+                let omega = (g * (flareG - 1)) / v0; // angular velocity rad/s
+                let currentTheta = thetaStart;
+
+                while (currentTheta > 0 && currentY > 0) {
+                    points.push({ x: currentX, y: currentY, phase: 'Abfangbogen', v: currentV, h: currentY });
+                    currentTheta -= omega * dt;
+                    if (currentTheta < 0) currentTheta = 0;
+                    
+                    let dx = v0 * Math.cos(currentTheta) * dt;
+                    let dy = v0 * Math.sin(currentTheta) * dt;
+                    currentX += dx;
+                    currentY -= dy;
+                    flareDist += dx;
+                }
+            }
+
+            if (currentY < 0) currentY = 0;
+
+            // 4. Braking phase on ground
+            let brakeDist = 0;
+            let currentBrakeV = v0;
+            while (currentBrakeV > 0) {
+                points.push({ x: currentX, y: 0, phase: 'Bremsphase', v: currentBrakeV, h: 0 });
+                let dx = currentBrakeV * dt;
+                currentX += dx;
+                brakeDist += dx;
+                currentBrakeV -= brakingDecel * dt;
+                if (currentBrakeV < 0) currentBrakeV = 0;
+            }
+
+            points.push({ x: currentX, y: 0, phase: 'Stillstand', v: 0, h: 0 });
+
+            const totalDist = currentX;
+
+            return {
+                points,
+                totalDist,
+                reactionDist,
+                descentDist,
+                flareDist,
+                brakeDist
+            };
+        }
+
+        function calculateAndSimulate() {
+            simData = calculateTrajectory();
+            
+            document.getElementById('resTotalDist').innerText = simData.totalDist.toFixed(1) + ' m';
+            document.getElementById('resReactionDist').innerText = simData.reactionDist.toFixed(1) + ' m';
+            document.getElementById('resDescentDist').innerText = simData.descentDist.toFixed(1) + ' m';
+            document.getElementById('resFlareDist').innerText = simData.flareDist.toFixed(1) + ' m';
+            document.getElementById('resBrakeDist').innerText = simData.brakeDist.toFixed(1) + ' m';
+            
+            document.getElementById('resFlareRow').style.display = document.getElementById('enableFlare').checked ? 'flex' : 'none';
+
+            animIndex = simData.points.length - 1;
+            renderChart(simData.points.length);
+            updateTelemetryDisplay(animIndex);
+        }
+
+        function renderChart(upToIdx) {
+            const ctx = document.getElementById('trajectoryChart').getContext('2d');
+            const plottedPoints = simData.points.slice(0, upToIdx);
+            const scatterData = plottedPoints.map(p => ({ x: p.x, y: p.y }));
+
+            if (chartInstance) {
+                chartInstance.data.datasets[0].data = scatterData;
+                chartInstance.update('none');
+                return;
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Flugbahn',
+                        data: scatterData,
+                        showLine: true,
+                        borderColor: '#38bdf8',
+                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                        borderWidth: 3,
+                        pointRadius: 0,
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: { display: true, text: 'Horizontaler Weg (m)', color: '#94a3b8' },
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#94a3b8' }
+                        },
+                        y: {
+                            type: 'linear',
+                            title: { display: true, text: 'Höhe (m)', color: '#94a3b8' },
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#94a3b8' },
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const pt = simData.points[context.dataIndex];
+                                    if (!pt) return '';
+                                    return `Phase: ${pt.phase} | X: ${pt.x.toFixed(1)}m | H: ${pt.y.toFixed(1)}m | V: ${pt.v.toFixed(1)} m/s`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateTelemetryDisplay(idx) {
+            if (!simData || !simData.points[idx]) return;
+            const pt = simData.points[idx];
+            document.getElementById('liveTelemetry').innerHTML = 
+                `Phase: <span class="text-amber-400">${pt.phase}</span> | X: <span class="text-white">${pt.x.toFixed(1)}m</span> | H: <span class="text-white">${pt.y.toFixed(1)}m</span> | V: <span class="text-white">${pt.v.toFixed(1)} m/s</span>`;
+        }
+
+        function togglePlayback() {
+            if (!simData) calculateAndSimulate();
+            const btn = document.getElementById('playBtn');
+
+            if (isPlaying) {
+                clearInterval(animTimer);
+                isPlaying = false;
+                btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Abspielen (Live)`;
+            } else {
+                isPlaying = true;
+                btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Pause`;
+                
+                if (animIndex >= simData.points.length - 1) {
+                    animIndex = 0;
+                }
+
+                animTimer = setInterval(() => {
+                    animIndex += 5;
+                    if (animIndex >= simData.points.length) {
+                        animIndex = simData.points.length - 1;
+                        clearInterval(animTimer);
+                        isPlaying = false;
+                        btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Abspielen (Live)`;
+                    }
+                    renderChart(animIndex);
+                    updateTelemetryDisplay(animIndex);
+                }, 30);
+            }
+        }
+
+        function resetPlayback() {
+            if (isPlaying) togglePlayback();
+            animIndex = simData ? simData.points.length - 1 : 0;
+            if (simData) {
+                renderChart(simData.points.length);
+                updateTelemetryDisplay(0);
+            }
+        }
+
+        window.onload = function() {
+            calculateAndSimulate();
+        };
+    </script>
+</body>
+</html>
