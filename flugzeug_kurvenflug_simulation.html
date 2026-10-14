@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flugzeug-Kurvenflug-Simulation mit Formeln</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        canvas { touch-action: none; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
+
+    <header class="bg-slate-800 border-b border-slate-700 py-4 px-6 shadow-md">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-plane text-sky-400"></i> Flugzeug-Kurvenflug-Simulation & Formelsammlung
+                </h1>
+                <p class="text-sm text-slate-400">Interaktive Kinematik mit Schräglage (Bank Angle), Drehratenbegrenzung und Drag-Funktion.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button id="btnStart" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-5 py-2 rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-play"></i> Starten / Neu berechnen
+                </button>
+                <button id="btnReset" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl transition flex items-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-rotate-right"></i> Reset
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Controls & Parameters Column -->
+        <div class="lg:col-span-1 flex flex-col gap-6">
+            
+            <!-- Input Panel -->
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-xl flex flex-col gap-4">
+                <h2 class="text-lg font-semibold text-sky-400 border-b border-slate-700 pb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-sliders"></i> Eingabeparameter
+                </h2>
+
+                <div class="grid grid-cols-1 gap-4">
+                    <!-- Geschwindigkeit -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Geschwindigkeit $v$ (m/s)</label>
+                        <input type="number" id="inV" value="50" min="10" max="300" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-sky-500">
+                    </div>
+
+                    <!-- Bank Angle (Schräglage) -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Bank Angle $\phi$ (Grad)</label>
+                        <input type="number" id="inBank" value="30" min="1" max="85" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-sky-500">
+                    </div>
+
+                    <!-- Ziel X-Wert -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Ziel X-Achsenwert $X_{target}$ (m)</label>
+                        <input type="number" id="inXTarget" value="800" min="50" max="5000" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-sky-500">
+                    </div>
+
+                    <!-- Drehratenänderung / Rollrate -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-xs font-medium text-slate-300">Max. Roll-/Drehratenänderung $\dot{\phi}$ (°/s)</label>
+                            <label class="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer">
+                                <input type="checkbox" id="chkUnlimitedRate" class="rounded bg-slate-900 border-slate-700 text-sky-500 focus:ring-0"> Unendlich
+                            </label>
+                        </div>
+                        <input type="number" id="inRollRate" value="15" min="1" max="180" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-sky-500">
+                    </div>
+
+                    <!-- Nach der 1 Sekunde Extra-Flugzeit Info -->
+                    <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-700/60 text-xs text-slate-400">
+                        <i class="fa-solid fa-circle-info text-sky-400 mr-1"></i> Nach Erreichen von $X_{target}$ fliegt das Flugzeug exakt 1 Sekunde mit konstanter Kurve weiter, ermittelt den Zwischen-X-Wert und leitet dann den Gegenkurvenflug ein.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Panel -->
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-xl flex flex-col gap-3">
+                <h2 class="text-lg font-semibold text-emerald-400 border-b border-slate-700 pb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-clipboard-check"></i> Ergebnisse
+                </h2>
+                <div class="space-y-3 text-sm">
+                    <div class="flex justify-between bg-slate-900/50 p-2.5 rounded-lg border border-slate-700/50">
+                        <span class="text-slate-400">Gesamte X-Strecke:</span>
+                        <span id="outTotalX" class="font-mono font-bold text-emerald-400">0.00 m</span>
+                    </div>
+                    <div class="flex justify-between bg-slate-900/50 p-2.5 rounded-lg border border-slate-700/50">
+                        <span class="text-slate-400">X-Wert nach +1s Kurvenflug:</span>
+                        <span id="outXPlus1" class="font-mono font-bold text-sky-400">0.00 m</span>
+                    </div>
+                    <div class="flex justify-between bg-slate-900/50 p-2.5 rounded-lg border border-slate-700/50">
+                        <span class="text-slate-400">Kurvenradius $R$:</span>
+                        <span id="outRadius" class="font-mono font-bold text-white">0.00 m</span>
+                    </div>
+                    <div class="flex justify-between bg-slate-900/50 p-2.5 rounded-lg border border-slate-700/50">
+                        <span class="text-slate-400">Gesamtflugzeit:</span>
+                        <span id="outTime" class="font-mono font-bold text-white">0.00 s</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Visualization & Formulas Column -->
+        <div class="lg:col-span-2 flex flex-col gap-6">
+            
+            <!-- Canvas Container -->
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-xl flex flex-col relative overflow-hidden h-[500px]">
+                <div class="flex justify-between items-center mb-2 px-2 z-10">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-chart-line text-sky-400"></i> Flugbahn-Visualisierung (Klick & Zieh das Flugzeug)
+                    </span>
+                    <div class="flex items-center gap-3 text-xs">
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-sky-500 inline-block"></span> Phase 1</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span> +1 Sekunde</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span> Gegenkurve</span>
+                    </div>
+                </div>
+                
+                <!-- Canvas -->
+                <div class="relative flex-1 w-full bg-slate-950 rounded-xl overflow-hidden border border-slate-800">
+                    <canvas id="simCanvas" class="w-full h-full cursor-grab active:cursor-grabbing"></canvas>
+                    
+                    <!-- Floating Live Telemetry Badge over Canvas -->
+                    <div id="telemetryBadge" class="absolute top-4 left-4 bg-slate-900/80 backdrop-blur-md border border-slate-700/80 p-3 rounded-xl shadow-lg text-xs flex flex-col gap-1 pointer-events-none">
+                        <div class="font-bold text-sky-400 border-b border-slate-700 pb-1 mb-1">Live Telemetrie</div>
+                        <div>Position: <span id="telPos" class="font-mono text-white">X: 0.0, Y: 0.0</span></div>
+                        <div>Geschw. Komp: <span id="telVel" class="font-mono text-emerald-400">Vx: 0.0, Vy: 0.0 m/s</span></div>
+                        <div>Drehwinkel $\psi$: <span id="telAngle" class="font-mono text-amber-400">0.0°</span></div>
+                        <div>Bank Angle $\phi$: <span id="telBank" class="font-mono text-purple-400">0.0°</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulas Panel -->
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-xl flex flex-col gap-4">
+                <h2 class="text-lg font-semibold text-purple-400 border-b border-slate-700 pb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-square-root-variable"></i> Verwendete Formeln & Physik-Modell
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-300">
+                    <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-700/60 flex flex-col gap-2">
+                        <div class="font-semibold text-sky-300">1. Kurvenradius ($R$)</div>
+                        <div class="font-mono text-xs bg-slate-950 p-2 rounded text-amber-300 overflow-x-auto">R = \frac{v^2}{g \cdot \tan(\phi)}</div>
+                        <p class="text-xs text-slate-400">Aus Fluggeschwindigkeit $v$ und Schräglage (Bank Angle) $\phi$ bei Erdbeschleunigung $g \approx 9.81 \, m/s^2$.</p>
+                    </div>
+
+                    <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-700/60 flex flex-col gap-2">
+                        <div class="font-semibold text-sky-300">2. Drehrate ($\omega$) & Rollraten-Limit</div>
+                        <div class="font-mono text-xs bg-slate-950 p-2 rounded text-amber-300 overflow-x-auto">\omega = \frac{v}{R} = \frac{g \cdot \tan(\phi)}{v}</div>
+                        <p class="text-xs text-slate-400">Die tatsächliche Bank-Änderung $\dot{\phi}$ ist durch die Rollratenbegrenzung gedeckelt (oder bei 'Unendlich' sofort aktiv).</p>
+                    </div>
+
+                    <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-700/60 flex flex-col gap-2">
+                        <div class="font-semibold text-sky-300">3. Geschwindigkeitskomponenten</div>
+                        <div class="font-mono text-xs bg-slate-950 p-2 rounded text-amber-300 overflow-x-auto">v_x = v \cdot \sin(\psi), \quad v_y = v \cdot \cos(\psi)</div>
+                        <p class="text-xs text-slate-400">Aufteilung auf die Achsen basierend auf dem aktuellen Kurs-/Giebelwinkel $\psi$ (0° = positive Y-Achse).</p>
+                    </div>
+
+                    <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-700/60 flex flex-col gap-2">
+                        <div class="font-semibold text-sky-300">4. Phasen-Ablauf</div>
+                        <div class="text-xs text-slate-400 leading-relaxed">
+                            • <b>Phase 1:</b> Start bei (0,0) nach Norden, Einleiten der Kurve bis $X_{target}$ erreicht ist.<br>
+                            • <b>Phase 2:</b> Exakt 1 Sekunde Weiterflug mit konstantem Radius.<br>
+                            • <b>Phase 3:</b> Gegenkurvenflug mit Bank Angle Richtungswechsel (unter Berücksichtigung der Rollrate) bis Kurs wieder exakt $\psi = 0^\circ$ (Norden).
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <script>
+        // Physics and simulation state
+        const g = 9.81; // m/s^2
+        
+        let simData = {
+            v: 50,
+            bankDeg: 30,
+            xTarget: 800,
+            rollRateDeg: 15,
+            unlimitedRate: false,
+            
+            // Results & trajectory cache
+            path: [],
+            totalX: 0,
+            xPlus1: 0,
+            radius: 0,
+            totalTime: 0,
+            
+            // Animation playback state
+            animTime: 0,
+            maxAnimTime: 0,
+            isPlaying: true,
+            isDragging: false,
+            dragProgress: 0, // 0 to 1 along path
+            
+            // Viewport panning/zoom
+            panX: 0,
+            panY: 0,
+            zoom: 1.0
+        };
+
+        // DOM Elements
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const inV = document.getElementById('inV');
+        const inBank = document.getElementById('inBank');
+        const inXTarget = document.getElementById('inXTarget');
+        const inRollRate = document.getElementById('inRollRate');
+        const chkUnlimitedRate = document.getElementById('chkUnlimitedRate');
+        
+        const outTotalX = document.getElementById('outTotalX');
+        const outXPlus1 = document.getElementById('outXPlus1');
+        const outRadius = document.getElementById('outRadius');
+        const outTime = document.getElementById('outTime');
+        
+        const telPos = document.getElementById('telPos');
+        const telVel = document.getElementById('telVel');
+        const telAngle = document.getElementById('telAngle');
+        const telBank = document.getElementById('telBank');
+
+        function calculateSimulation() {
+            simData.v = parseFloat(inV.value) || 50;
+            simData.bankDeg = parseFloat(inBank.value) || 30;
+            simData.xTarget = parseFloat(inXTarget.value) || 800;
+            simData.rollRateDeg = parseFloat(inRollRate.value) || 15;
+            simData.unlimitedRate = chkUnlimitedRate.checked;
+
+            const v = simData.v;
+            const targetBank = simData.bankDeg * Math.PI / 180;
+            const rollRate = simData.unlimitedRate ? 100000 : (simData.rollRateDeg * Math.PI / 180);
+            const xTarget = simData.xTarget;
+
+            // Radius calculation: R = v^2 / (g * tan(phi))
+            const R = (v * v) / (g * Math.tan(targetBank));
+            simData.radius = R;
+
+            let path = [];
+            let dt = 0.05; // Time step 50ms
+            let t = 0;
+
+            // State variables: x, y, heading psi (0 = +Y), current bank phi
+            let x = 0, y = 0, psi = 0, currentBank = 0;
+            
+            let phase = 1; // 1: First turn to Xtarget, 2: 1s extra flight, 3: Counter turn to heading 0
+            let extraFlightTimer = 0;
+            
+            let recordedXPlus1 = null;
+            let timeAtXPlus1 = 0;
+
+            path.push({ t, x, y, psi, bank: currentBank, phase });
+
+            let maxSteps = 10000;
+            let step = 0;
+
+            while (step < maxSteps) {
+                step++;
+                t += dt;
+
+                // 1. Bank Angle dynamics (Roll rate adjustment)
+                let targetBankForPhase = 0;
+                if (phase === 1 || phase === 2) {
+                    targetBankForPhase = targetBank;
+                } else if (phase === 3) {
+                    // Counter turn in opposite direction (-targetBank) to bring heading back to 0
+                    targetBankForPhase = -targetBank;
+                }
+
+                let bankDiff = targetBankForPhase - currentBank;
+                let maxBankDelta = rollRate * dt;
+                if (Math.abs(bankDiff) <= maxBankDelta) {
+                    currentBank = targetBankForPhase;
+                } else {
+                    currentBank += Math.sign(bankDiff) * maxBankDelta;
+                }
+
+                // 2. Kinematics based on current bank and heading
+                // Turn rate omega = (g * tan(phi)) / v (if currentBank != 0, else 0)
+                let omega = 0;
+                if (Math.abs(currentBank) > 0.001) {
+                    omega = (g * Math.tan(currentBank)) / v;
+                }
+
+                psi += omega * dt;
+                
+                // Velocity components
+                let vx = v * Math.sin(psi);
+                let vy = v * Math.cos(psi);
+
+                x += vx * dt;
+                y += vy * dt;
+
+                path.push({ t, x, y, psi, bank: currentBank, phase, vx, vy });
+
+                // Phase logic checks
+                if (phase === 1) {
+                    // Check if Xtarget is reached (or passed)
+                    if (x >= xTarget) {
+                        phase = 2;
+                        extraFlightTimer = 0;
+                    }
+                } else if (phase === 2) {
+                    extraFlightTimer += dt;
+                    if (extraFlightTimer >= 1.0) {
+                        // Record state after 1 second extra flight
+                        recordedXPlus1 = x;
+                        simData.xPlus1 = x;
+                        timeAtXPlus1 = t;
+                        phase = 3;
+                    }
+                } else if (phase === 3) {
+                    // Check if heading psi is back to 0 (or normalized around 2*PI, or crossed 0 from positive/negative)
+                    // Normalizing psi to [-PI, PI]
+                    let normPsi = psi % (2 * Math.PI);
+                    if (normPsi > Math.PI) normPsi -= 2 * Math.PI;
+                    if (normPsi < -Math.PI) normPsi += 2 * Math.PI;
+
+                    // If we reached heading 0 coming from counter turn
+                    if (Math.abs(normPsi) < 0.01 && t > timeAtXPlus1 + 0.2) {
+                        // Level out wings to finish
+                        currentBank = 0;
+                        break;
+                    }
+                }
+            }
+
+            simData.path = path;
+            simData.totalTime = t;
+            simData.maxAnimTime = t;
+            simData.totalX = path[path.length - 1].x;
+
+            if (recordedXPlus1 === null && path.length > 0) {
+                simData.xPlus1 = path[path.length - 1].x;
+            }
+
+            // Update DOM output fields
+            outTotalX.textContent = simData.totalX.toFixed(2) + " m";
+            outXPlus1.textContent = simData.xPlus1.toFixed(2) + " m";
+            outRadius.textContent = simData.radius.toFixed(2) + " m";
+            outTime.textContent = simData.totalTime.toFixed(2) + " s";
+
+            if (!simData.isDragging) {
+                simData.animTime = simData.maxAnimTime;
+            }
+        }
+
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        function draw() {
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+
+            ctx.clearRect(0, 0, width, height);
+
+            if (simData.path.length === 0) return;
+
+            // Find bounding box of path for auto-scaling
+            let minX = 0, maxX = 100, minY = 0, maxY = 100;
+            simData.path.forEach(p => {
+                if (p.x < minX) minX = p.x;
+                if (p.x > maxX) maxX = p.x;
+                if (p.y < minY) minY = p.y;
+                if (p.y > maxY) maxY = p.y;
+            });
+
+            let margin = 80;
+            let rangeX = Math.max(maxX - minX, 200);
+            let rangeY = Math.max(maxY - minY, 200);
+
+            let scaleX = (width - 2 * margin) / rangeX;
+            let scaleY = (height - 2 * margin) / rangeY;
+            let scale = Math.min(scaleX, scaleY) * simData.zoom;
+
+            // Center / offset translation
+            let centerX = width / 2 + simData.panX;
+            let centerY = height / 2 + simData.panY;
+
+            // World to canvas coordinate transform function
+            function toScreen(wx, wy) {
+                // In world: Y goes up, X goes right. In canvas: Y goes down.
+                let sx = centerX + (wx - (minX + maxX) / 2) * scale;
+                let sy = centerY - (wy - (minY + maxY) / 2) * scale;
+                return { x: sx, y: sy };
+            }
+
+            // Draw coordinate grid & axes
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            ctx.fillStyle = '#64748b';
+            ctx.font = '11px Inter, sans-serif';
+
+            // Draw origin (0,0) marker
+            let orig = toScreen(0, 0);
+            ctx.beginPath();
+            ctx.arc(orig.x, orig.y, 4, 0, 2 * Math.PI);
+            ctx.fillStyle = '#38bdf8';
+            ctx.fill();
+            ctx.fillText('Start (0,0)', orig.x + 8, orig.y + 15);
+
+            // Draw Target X line
+            let targetScreen = toScreen(simData.xTarget, 0);
+            ctx.strokeStyle = '#f59e0b';
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(targetScreen.x, 0);
+            ctx.lineTo(targetScreen.x, height);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#f59e0b';
+            ctx.fillText(`X_target (${simData.xTarget}m)`, targetScreen.x + 6, 25);
+
+            // Draw complete flight path split by phases
+            if (simData.path.length > 1) {
+                ctx.lineWidth = 3;
+                let currentSegmentPhase = simData.path[0].phase;
+                let segPoints = [toScreen(simData.path[0].x, simData.path[0].y)];
+
+                for (let i = 1; i < simData.path.length; i++) {
+                    let p = simData.path[i];
+                    let s = toScreen(p.x, p.y);
+                    if (p.phase !== currentSegmentPhase || i === simData.path.length - 1) {
+                        ctx.beginPath();
+                        ctx.moveTo(segPoints[0].x, segPoints[0].y);
+                        segPoints.forEach(pt => ctx.lineTo(pt.x, pt.y));
+                        
+                        if (currentSegmentPhase === 1) ctx.strokeStyle = '#0ea5e9'; // sky
+                        else if (currentSegmentPhase === 2) ctx.strokeStyle = '#f59e0b'; // amber
+                        else ctx.strokeStyle = '#10b981'; // emerald
+                        
+                        ctx.stroke();
+                        currentSegmentPhase = p.phase;
+                        segPoints = [toScreen(simData.path[i-1].x, simData.path[i-1].y)];
+                    }
+                    segPoints.push(s);
+                }
+            }
+
+            // Find current animated state based on animTime
+            let currIdx = simData.path.findIndex(p => p.t >= simData.animTime);
+            if (currIdx === -1) currIdx = simData.path.length - 1;
+            if (currIdx < 0) currIdx = 0;
+            let currentPt = simData.path[currIdx];
+
+            // Draw airplane at currentPt
+            let planeScr = toScreen(currentPt.x, currentPt.y);
+            
+            ctx.save();
+            ctx.translate(planeScr.x, planeScr.y);
+            ctx.rotate(currentPt.psi); // Rotate to heading
+
+            // Airplane Icon / Shape
+            ctx.fillStyle = '#f8fafc';
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 1.5;
+
+            ctx.beginPath();
+            ctx.moveTo(0, -14); // Nose
+            ctx.lineTo(8, 8);   // Right wing tip
+            ctx.lineTo(0, 4);   // Tail center notch
+            ctx.lineTo(-8, 8);  // Left wing tip
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Bank angle indicator effect (tilt simulation)
+            if (Math.abs(currentPt.bank) > 0.05) {
+                ctx.strokeStyle = '#c084fc';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, 12, -Math.PI/2 - currentPt.bank, -Math.PI/2 + currentPt.bank);
+                ctx.stroke();
+            }
+
+            ctx.restore();
+
+            // Update telemetry UI badge
+            telPos.textContent = `X: ${currentPt.x.toFixed(1)}m, Y: ${currentPt.y.toFixed(1)}m`;
+            let vx = currentPt.vx !== undefined ? currentPt.vx : simData.v * Math.sin(currentPt.psi);
+            let vy = currentPt.vy !== undefined ? currentPt.vy : simData.v * Math.cos(currentPt.psi);
+            telVel.textContent = `Vx: ${vx.toFixed(1)}, Vy: ${vy.toFixed(1)} m/s`;
+            let headingDeg = (currentPt.psi * 180 / Math.PI) % 360;
+            telAngle.textContent = `${headingDeg.toFixed(1)}°`;
+            let bankDeg = (currentPt.bank * 180 / Math.PI);
+            telBank.textContent = `${bankDeg.toFixed(1)}°`;
+        }
+
+        let isMouseDown = false;
+        let startMouseX = 0, startMouseY = 0;
+
+        canvas.addEventListener('mousedown', (e) => {
+            isMouseDown = true;
+            startMouseX = e.clientX;
+            startMouseY = e.clientY;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isMouseDown) return;
+            let dx = e.clientX - startMouseX;
+            let dy = e.clientY - startMouseY;
+            
+            // If dragging, let user scrub timeline or pan if right click / shift
+            if (e.shiftKey) {
+                simData.panX += dx;
+                simData.panY += dy;
+            } else {
+                // Scrub time based on horizontal mouse movement
+                simData.isDragging = true;
+                simData.animTime += (dx * 0.05);
+                if (simData.animTime < 0) simData.animTime = 0;
+                if (simData.animTime > simData.maxAnimTime) simData.animTime = simData.maxAnimTime;
+            }
+            startMouseX = e.clientX;
+            startMouseY = e.clientY;
+            draw();
+        });
+
+        window.addEventListener('mouseup', () => {
+            isMouseDown = false;
+        });
+
+        // Touch support for mobile devices
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                isMouseDown = true;
+                startMouseX = e.touches[0].clientX;
+                startMouseY = e.touches[0].clientY;
+            }
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (!isMouseDown || e.touches.length !== 1) return;
+            let dx = e.touches[0].clientX - startMouseX;
+            simData.isDragging = true;
+            simData.animTime += (dx * 0.05);
+            if (simData.animTime < 0) simData.animTime = 0;
+            if (simData.animTime > simData.maxAnimTime) simData.animTime = simData.maxAnimTime;
+            startMouseX = e.touches[0].clientX;
+            startMouseY = e.touches[0].clientY;
+            draw();
+        });
+
+        canvas.addEventListener('touchend', () => {
+            isMouseDown = false;
+        });
+
+        // Zoom via mouse wheel
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            if (e.deltaY < 0) {
+                simData.zoom *= 1.1;
+            } else {
+                simData.zoom /= 1.1;
+            }
+            draw();
+        }, { passive: false });
+
+        // Animation loop for playback
+        function animationLoop(timestamp) {
+            if (simData.isPlaying && simData.maxAnimTime > 0 && !simData.isDragging) {
+                simData.animTime += 0.03; // playback speed
+                if (simData.animTime > simData.maxAnimTime) {
+                    simData.animTime = 0; // loop
+                }
+            }
+            draw();
+            requestAnimationFrame(animationLoop);
+        }
+
+        // Button action handlers
+        document.getElementById('btnStart').addEventListener('click', () => {
+            simData.isDragging = false;
+            calculateSimulation();
+            resizeCanvas();
+        });
+
+        document.getElementById('btnReset').addEventListener('click', () => {
+            inV.value = 50;
+            inBank.value = 30;
+            inXTarget.value = 800;
+            inRollRate.value = 15;
+            chkUnlimitedRate.checked = false;
+            simData.zoom = 1.0;
+            simData.panX = 0;
+            simData.panY = 0;
+            simData.isDragging = false;
+            calculateSimulation();
+            resizeCanvas();
+        });
+
+        chkUnlimitedRate.addEventListener('change', () => {
+            inRollRate.disabled = chkUnlimitedRate.checked;
+            inRollRate.classList.toggle('opacity-50', chkUnlimitedRate.checked);
+        });
+
+        // Initial setup on load
+        window.onload = function() {
+            resizeCanvas();
+            calculateSimulation();
+            requestAnimationFrame(animationLoop);
+        };
+    </script>
+</body>
+</html>
