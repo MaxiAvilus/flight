@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-900 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blade Launch Physics Simulator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js for trajectory visualization with fallback handling -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="h-full flex flex-col min-h-screen">
+
+    <!-- Header -->
+    <header class="border-b border-slate-800 bg-slate-950/50 backdrop-blur px-6 py-4">
+        <div class="max-w-7xl mx-mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400">
+                    <i data-lucide="disc" class="w-6 h-6 animate-spin" style="animation-duration: 8s;"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">Helicopter Blade Trajectory Kinematics</h1>
+                    <p class="text-xs text-slate-400">Rotating Blade Release ("Schiefer Wurf") with Aerodynamic Drag & Lift</p>
+                </div>
+            </div>
+            <div class="text-xs bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-full text-slate-300 font-mono">
+                g = 9.81 m/s² | ρ = 1.225 kg/m³
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Controls & Physics Parameters Column -->
+        <div class="lg:col-span-4 flex flex-col gap-6">
+            
+            <!-- Primary Inputs -->
+            <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 shadow-xl backdrop-blur-sm">
+                <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
+                    <i data-lucide="sliders" class="w-4 h-4 text-indigo-400"></i> Input Parameters
+                </h2>
+
+                <!-- RPM Input -->
+                <div class="mb-5">
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="rpmInput" class="text-sm font-medium text-slate-200">Rotation Speed (RPM)</label>
+                        <span id="rpmDisplay" class="text-sm font-mono font-semibold text-indigo-400">400 RPM</span>
+                    </div>
+                    <input type="range" id="rpmSlider" min="50" max="2000" step="10" value="400" 
+                        class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                    <input type="number" id="rpmInput" value="400" min="1" max="10000" 
+                        class="mt-2 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono text-indigo-300 focus:outline-none focus:border-indigo-500 transition-colors">
+                </div>
+
+                <!-- Secondary Parameters -->
+                <div class="border-t border-slate-700/60 pt-4 space-y-4">
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label for="radiusInput" class="text-xs font-medium text-slate-400">Rotor Radius (r)</label>
+                            <span id="radiusDisplay" class="text-xs font-mono text-slate-300">5.0 m</span>
+                        </div>
+                        <input type="range" id="radiusSlider" min="1.0" max="10.0" step="0.1" value="5.0"
+                            class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-slate-400">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label for="heightInput" class="text-xs font-medium text-slate-400">Release Height (h₀)</label>
+                            <span id="heightDisplay" class="text-xs font-mono text-slate-300">3.0 m</span>
+                        </div>
+                        <input type="range" id="heightSlider" min="0" max="20" step="0.5" value="3.0"
+                            class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-slate-400">
+                    </div>
+
+                    <div class="flex items-center justify-between pt-1">
+                        <span class="text-xs text-slate-400">Include Aerodynamics (Drag & Lift)</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="dragToggle" checked class="sr-only peer">
+                            <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Key Calculated Results Card -->
+            <div class="bg-indigo-950/30 border border-indigo-500/20 rounded-2xl p-5 shadow-xl flex-1 flex flex-col justify-between">
+                <div>
+                    <h2 class="text-sm font-semibold uppercase tracking-wider text-indigo-300 mb-4 flex items-center gap-2">
+                        <i data-lucide="zap" class="w-4 h-4 text-indigo-400"></i> Max Range Solution
+                    </h2>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <div class="bg-slate-900/80 border border-slate-800 p-3 rounded-xl">
+                            <p class="text-xs text-slate-400 mb-1">Max Distance (R_max)</p>
+                            <p id="maxDistanceText" class="text-2xl font-bold font-mono text-indigo-400">--</p>
+                        </div>
+                        <div class="bg-slate-900/80 border border-slate-800 p-3 rounded-xl">
+                            <p class="text-xs text-slate-400 mb-1">Optimal Angle (θ_opt)</p>
+                            <p id="optAngleText" class="text-2xl font-bold font-mono text-emerald-400">--</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2 text-xs text-slate-300 font-mono bg-slate-900/50 p-3 rounded-xl border border-slate-800">
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Linear Velocity (v₀):</span>
+                            <span id="tangentialVelText" class="font-semibold text-slate-200">--</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Angular Velocity (ω):</span>
+                            <span id="angularVelText" class="font-semibold text-slate-200">--</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Flight Duration:</span>
+                            <span id="flightTimeText" class="font-semibold text-slate-200">--</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Peak Height (Y_max):</span>
+                            <span id="apexHeightText" class="font-semibold text-slate-200">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-slate-400 leading-relaxed">
+                    💡 <strong>Aerodynamic Note:</strong> Helicopter blades (1–10m) experience significant drag ($F_d = \frac{1}{2} \rho v^2 C_d A$) and tumbling lift effects during unpowered auto-rotation, steepening the optimal trajectory angle.
+                </div>
+            </div>
+        </div>
+
+        <!-- Visualizations Column -->
+        <div class="lg:col-span-8 flex flex-col gap-6">
+
+            <!-- Canvas / Animated Trajectory & Diagram -->
+            <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 shadow-xl flex flex-col flex-1">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                        <i data-lucide="activity" class="w-4 h-4 text-indigo-400"></i> Flight Simulation & Trajectory
+                    </h2>
+                    <div class="flex items-center gap-2">
+                        <button id="btnAnimate" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 shadow-lg shadow-indigo-600/20">
+                            <i data-lucide="play" class="w-3.5 h-3.5"></i> Launch Simulation
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Canvas Wrapper -->
+                <div class="relative w-full flex-1 min-h-[300px] bg-slate-950 rounded-xl overflow-hidden border border-slate-800">
+                    <canvas id="simCanvas" class="w-full h-full block"></canvas>
+                </div>
+            </div>
+
+            <!-- Comparison Chart (Distance vs Release Angle) -->
+            <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 shadow-xl h-[260px] flex flex-col">
+                <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-2">
+                    <i data-lucide="trending-up" class="w-4 h-4 text-indigo-400"></i> Distance vs. Release Angle (0° to 90°)
+                </h2>
+                <div class="relative flex-1 w-full h-full">
+                    <canvas id="angleChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Mathematical Derivation & Theoretical Section -->
+    <section class="max-w-7xl w-full mx-auto p-4 sm:p-6 pt-0">
+        <div class="bg-slate-800/40 border border-slate-800 rounded-2xl p-6 text-slate-300 text-sm space-y-4">
+            <h3 class="text-base font-semibold text-slate-100 flex items-center gap-2">
+                <i data-lucide="book-open" class="w-5 h-5 text-indigo-400"></i> Mathematical Derivation ("Schiefer Wurf")
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 font-mono text-xs text-slate-300">
+                <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+                    <p class="text-indigo-400 font-bold mb-2">1. Tangential Velocity (v₀)</p>
+                    <p class="text-slate-400 mb-1">Rotational speed to linear velocity:</p>
+                    <p class="text-sm text-slate-100 font-semibold mb-2">v₀ = ω · r = (2π · RPM / 60) · r</p>
+                    <p class="text-slate-400">Where ω is angular velocity in rad/s and r is the radius of the blade.</p>
+                </div>
+                <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+                    <p class="text-indigo-400 font-bold mb-2">2. Maximum Range Equation</p>
+                    <p class="text-slate-400 mb-1">Horizontal distance from elevation h₀:</p>
+                    <p class="text-sm text-slate-100 font-semibold mb-2">R = (v₀ / g) · [ v₀ sinθ + √(v₀² sin²θ + 2gh₀) ] · cosθ</p>
+                    <p class="text-slate-400">For h₀ = 0, this simplifies to R = (v₀² / g) · sin(2θ).</p>
+                </div>
+                <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+                    <p class="text-indigo-400 font-bold mb-2">3. Optimal Release Angle (θ_opt)</p>
+                    <p class="text-slate-400 mb-1">Differentiating R with respect to θ:</p>
+                    <p class="text-sm text-slate-100 font-semibold mb-2">θ_opt = arcsin( 1 / √(2 + 2gh₀ / v₀²) )</p>
+                    <p class="text-slate-400">When h₀ = 0, θ_opt = arcsin(1/√2) = 45°.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800 text-center py-4 text-xs text-slate-500">
+        Kinematics Interactive Physics Model &bull; Schiefer Wurf Calculation
+    </footer>
+
+    <!-- Logic & Physics Script -->
+    <script>
+        // Physics Constants
+        const G = 9.81; // m/s^2
+        const RHO = 1.225; // kg/m^3 (air density)
+
+        // Helicopter blade physical properties (defaults)
+        const CHORD = 0.35; // average blade chord width (meters)
+        const BLADE_MASS_DENSITY = 8.0; // kg/m of blade length
+
+        // State variables
+        let rpm = 400;
+        let radius = 5.0; // meters (1 - 10 m range)
+        let height = 3.0; // meters
+        let enableDrag = true;
+
+        let optAngleRad = Math.PI / 4;
+        let optAngleDeg = 45;
+        let maxDistance = 0;
+        let v0 = 0;
+        let omega = 0;
+        let flightTime = 0;
+        let apexHeight = 0;
+
+        // Canvas / Animation variables
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        let animId = null;
+        let animProgress = 0;
+
+        // Chart variable
+        let angleChart = null;
+
+        // DOM Element references
+        const rpmInput = document.getElementById('rpmInput');
+        const rpmSlider = document.getElementById('rpmSlider');
+        const rpmDisplay = document.getElementById('rpmDisplay');
+
+        const radiusSlider = document.getElementById('radiusSlider');
+        const radiusDisplay = document.getElementById('radiusDisplay');
+
+        const heightSlider = document.getElementById('heightSlider');
+        const heightDisplay = document.getElementById('heightDisplay');
+
+        const dragToggle = document.getElementById('dragToggle');
+
+        const maxDistanceText = document.getElementById('maxDistanceText');
+        const optAngleText = document.getElementById('optAngleText');
+        const tangentialVelText = document.getElementById('tangentialVelText');
+        const angularVelText = document.getElementById('angularVelText');
+        const flightTimeText = document.getElementById('flightTimeText');
+        const apexHeightText = document.getElementById('apexHeightText');
+        const btnAnimate = document.getElementById('btnAnimate');
+
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // Canvas Resize Handler
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            drawSimulation();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        // Core Physics Calculation Functions
+        function calculateKinematics() {
+            omega = (2 * Math.PI * rpm) / 60; // rad/s
+            v0 = omega * radius; // m/s (tip speed/linear release speed around 0.7-1.0 r effective center of mass)
+
+            // Approximate mass and aerodynamic area for helicopter blade
+            const bladeMass = Math.max(0.5, BLADE_MASS_DENSITY * radius); 
+            const crossArea = CHORD * radius; // characteristic area
+            const Cd = 0.8; // Average drag coefficient for a tumbling/flying flat blade
+            const Cl = 0.25; // Mean tumbling lift coefficient
+
+            if (!enableDrag) {
+                // Vacuum / Pure parabolic solution
+                if (height <= 0) {
+                    optAngleRad = Math.PI / 4;
+                } else {
+                    optAngleRad = Math.asin(1 / Math.sqrt(2 + (2 * G * height) / (v0 * v0)));
+                }
+                optAngleDeg = (optAngleRad * 180) / Math.PI;
+
+                const sin = Math.sin(optAngleRad);
+                const cos = Math.cos(optAngleRad);
+                flightTime = (v0 * sin + Math.sqrt(v0 * v0 * sin * sin + 2 * G * height)) / G;
+                maxDistance = v0 * cos * flightTime;
+                apexHeight = height + (v0 * sin) * (v0 * sin) / (2 * G);
+            } else {
+                // Aerodynamic Numerical Integration with air resistance
+                let bestDist = 0;
+                let bestAngle = 45;
+                let bestTime = 0;
+                let bestApex = height;
+
+                const dragCoeffTerm = 0.5 * RHO * Cd * crossArea / bladeMass;
+                const liftCoeffTerm = 0.5 * RHO * Cl * crossArea / bladeMass;
+
+                for (let deg = 1; deg <= 89; deg += 0.5) {
+                    const rad = (deg * Math.PI) / 180;
+                    let vx = v0 * Math.cos(rad);
+                    let vy = v0 * Math.sin(rad);
+                    let x = 0;
+                    let y = height;
+                    let t = 0;
+                    let dt = 0.001;
+                    let maxH = y;
+
+                    while (y >= 0 && t < 120) {
+                        let v = Math.sqrt(vx * vx + vy * vy);
+                        
+                        // Drag opposing direction of velocity vector
+                        let fDragX = -dragCoeffTerm * v * vx;
+                        let fDragY = -dragCoeffTerm * v * vy;
+
+                        // Perpendicular aerodynamic lift force
+                        let fLiftX = -liftCoeffTerm * v * vy;
+                        let fLiftY = liftCoeffTerm * v * vx;
+
+                        let ax = fDragX + fLiftX;
+                        let ay = -G + fDragY + fLiftY;
+
+                        vx += ax * dt;
+                        vy += ay * dt;
+                        x += vx * dt;
+                        y += vy * dt;
+                        t += dt;
+
+                        if (y > maxH) maxH = y;
+                    }
+
+                    if (x > bestDist) {
+                        bestDist = x;
+                        bestAngle = deg;
+                        bestTime = t;
+                        bestApex = maxH;
+                    }
+                }
+
+                optAngleDeg = bestAngle;
+                optAngleRad = (bestAngle * Math.PI) / 180;
+                maxDistance = bestDist;
+                flightTime = bestTime;
+                apexHeight = bestApex;
+            }
+
+            // Update UI Numerical Output
+            rpmDisplay.textContent = `${rpm.toLocaleString()} RPM`;
+            radiusDisplay.textContent = `${radius.toFixed(1)} m`;
+            heightDisplay.textContent = `${height.toFixed(1)} m`;
+
+            maxDistanceText.textContent = maxDistance > 1000 
+                ? `${(maxDistance / 1000).toFixed(2)} km` 
+                : `${maxDistance.toFixed(2)} m`;
+            
+            optAngleText.textContent = `${optAngleDeg.toFixed(1)}°`;
+            tangentialVelText.textContent = `${v0.toFixed(1)} m/s (${(v0 * 3.6).toFixed(1)} km/h)`;
+            angularVelText.textContent = `${omega.toFixed(1)} rad/s`;
+            flightTimeText.textContent = `${flightTime.toFixed(2)} s`;
+            apexHeightText.textContent = `${apexHeight.toFixed(2)} m`;
+
+            updateChart();
+            drawSimulation();
+        }
+
+        // Generate Trajectory Points
+        function getTrajectoryPoints(angleRad, count = 100) {
+            const points = [];
+            const sin = Math.sin(angleRad);
+            const cos = Math.cos(angleRad);
+            
+            if (!enableDrag) {
+                const totalT = (v0 * sin + Math.sqrt(v0 * v0 * sin * sin + 2 * G * height)) / G;
+                for (let i = 0; i <= count; i++) {
+                    const t = (i / count) * totalT;
+                    const x = v0 * cos * t;
+                    const y = height + v0 * sin * t - 0.5 * G * t * t;
+                    points.push({ x: Math.max(0, x), y: Math.max(0, y) });
+                }
+            } else {
+                let vx = v0 * cos;
+                let vy = v0 * sin;
+                let x = 0;
+                let y = height;
+                let dt = flightTime / count;
+
+                const bladeMass = Math.max(0.5, BLADE_MASS_DENSITY * radius);
+                const crossArea = CHORD * radius;
+                const dragCoeffTerm = 0.5 * RHO * 0.8 * crossArea / bladeMass;
+                const liftCoeffTerm = 0.5 * RHO * 0.25 * crossArea / bladeMass;
+
+                for (let i = 0; i <= count && y >= 0; i++) {
+                    points.push({ x: Math.max(0, x), y: Math.max(0, y) });
+                    let v = Math.sqrt(vx * vx + vy * vy);
+                    
+                    let ax = -dragCoeffTerm * v * vx - liftCoeffTerm * v * vy;
+                    let ay = -G - dragCoeffTerm * v * vy + liftCoeffTerm * v * vx;
+
+                    vx += ax * dt;
+                    vy += ay * dt;
+                    x += vx * dt;
+                    y += vy * dt;
+                }
+            }
+            return points;
+        }
+
+        // Draw Simulation on Canvas
+        function drawSimulation() {
+            if (!ctx) return;
+            const w = canvas.width;
+            const h = canvas.height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Padding and scale settings
+            const padX = 50;
+            const padY = 40;
+            const renderW = w - padX * 2;
+            const renderH = h - padY * 2;
+
+            const maxScaleX = Math.max(maxDistance * 1.1, 5);
+            const maxScaleY = Math.max(apexHeight * 1.2, 2);
+
+            function toScreenX(x) {
+                return padX + (x / maxScaleX) * renderW;
+            }
+            function toScreenY(y) {
+                return h - padY - (y / maxScaleY) * renderH;
+            }
+
+            // Draw Grid Lines
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let i = 0; i <= 5; i++) {
+                let yVal = (maxScaleY / 5) * i;
+                let sy = toScreenY(yVal);
+                ctx.moveTo(padX, sy);
+                ctx.lineTo(w - padX, sy);
+
+                let xVal = (maxScaleX / 5) * i;
+                let sx = toScreenX(xVal);
+                ctx.moveTo(sx, padY);
+                ctx.lineTo(sx, h - padY);
+            }
+            ctx.stroke();
+
+            // Ground Line
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(padX - 10, toScreenY(0));
+            ctx.lineTo(w - padX + 10, toScreenY(0));
+            ctx.stroke();
+
+            // Axis Labels
+            ctx.fillStyle = '#64748b';
+            ctx.font = '10px monospace';
+            ctx.fillText(`0m`, padX - 25, toScreenY(0) + 4);
+            ctx.fillText(`${maxScaleX.toFixed(1)}m`, w - padX - 20, toScreenY(0) + 18);
+            ctx.fillText(`${maxScaleY.toFixed(1)}m`, padX - 35, toScreenY(maxScaleY) + 4);
+
+            // Draw reference trajectories (e.g., 15°, 30°, 45°, 60°, 75°)
+            const refAngles = [15, 30, 45, 60, 75];
+            refAngles.forEach(a => {
+                if (Math.abs(a - optAngleDeg) > 3) {
+                    const pts = getTrajectoryPoints((a * Math.PI) / 180, 50);
+                    ctx.strokeStyle = 'rgba(71, 85, 105, 0.35)';
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([3, 3]);
+                    ctx.beginPath();
+                    pts.forEach((p, idx) => {
+                        if (idx === 0) ctx.moveTo(toScreenX(p.x), toScreenY(p.y));
+                        else ctx.lineTo(toScreenX(p.x), toScreenY(p.y));
+                    });
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            });
+
+            // Draw Optimal Trajectory Path
+            const optPoints = getTrajectoryPoints(optAngleRad, 100);
+            ctx.strokeStyle = '#6366f1'; // Indigo-500
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            
+            const visibleCount = Math.floor(optPoints.length * (animProgress || 1));
+            for (let i = 0; i < visibleCount; i++) {
+                let p = optPoints[i];
+                if (i === 0) ctx.moveTo(toScreenX(p.x), toScreenY(p.y));
+                else ctx.lineTo(toScreenX(p.x), toScreenY(p.y));
+            }
+            ctx.stroke();
+
+            // Draw Launch Point / Stand
+            const originX = toScreenX(0);
+            const originY = toScreenY(height);
+
+            ctx.fillStyle = '#6366f1';
+            ctx.beginPath();
+            ctx.arc(originX, originY, 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw Projectile / Trajectory Point at current animation step
+            if (optPoints.length > 0 && visibleCount > 0) {
+                const currentPt = optPoints[Math.min(visibleCount - 1, optPoints.length - 1)];
+                const px = toScreenX(currentPt.x);
+                const py = toScreenY(currentPt.y);
+
+                ctx.fillStyle = '#10b981'; // Emerald dot for projectile
+                ctx.beginPath();
+                ctx.arc(px, py, 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Animation Loop Trigger
+        function triggerAnimation() {
+            if (animId) cancelAnimationFrame(animId);
+            animProgress = 0;
+            const startTime = performance.now();
+            const duration = 2000; // 2 seconds animation duration
+
+            function step(timestamp) {
+                const elapsed = timestamp - startTime;
+                animProgress = Math.min(1, elapsed / duration);
+                drawSimulation();
+
+                if (animProgress < 1) {
+                    animId = requestAnimationFrame(step);
+                }
+            }
+
+            animId = requestAnimationFrame(step);
+        }
+
+        // Initialize Chart.js Range vs Angle Plot with safe error handling
+        function initChart() {
+            const chartCanvas = document.getElementById('angleChart');
+            if (!chartCanvas) return;
+
+            if (typeof Chart === 'undefined') {
+                console.warn('Chart.js failed to load from CDN. Rendering fallback visualization.');
+                return;
+            }
+
+            try {
+                const ctxChart = chartCanvas.getContext('2d');
+                angleChart = new Chart(ctxChart, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Range (m)',
+                            data: [],
+                            borderColor: '#6366f1',
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            pointRadius: 0,
+                            pointHoverRadius: 6,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => `Distance: ${context.parsed.y.toFixed(2)} m`
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: { color: '#1e293b' },
+                                ticks: { color: '#64748b', font: { size: 10 } },
+                                title: { display: true, text: 'Release Angle (°)', color: '#64748b', font: { size: 10 } }
+                            },
+                            y: {
+                                grid: { color: '#1e293b' },
+                                ticks: { color: '#64748b', font: { size: 10 } },
+                                title: { display: true, text: 'Max Range (m)', color: '#64748b', font: { size: 10 } }
+                            }
+                        }
+                    }
+                });
+            } catch (err) {
+                console.error('Failed to initialize Chart.js:', err);
+            }
+        }
+
+        function updateChart() {
+            if (!angleChart) {
+                drawFallbackChart();
+                return;
+            }
+
+            const labels = [];
+            const data = [];
+
+            for (let deg = 1; deg <= 89; deg += 1) {
+                const rad = (deg * Math.PI) / 180;
+                let range = 0;
+
+                if (!enableDrag) {
+                    const sin = Math.sin(rad);
+                    const cos = Math.cos(rad);
+                    const t = (v0 * sin + Math.sqrt(v0 * v0 * sin * sin + 2 * G * height)) / G;
+                    range = v0 * cos * t;
+                } else {
+                    let vx = v0 * Math.cos(rad);
+                    let vy = v0 * Math.sin(rad);
+                    let x = 0, y = height, dt = 0.005;
+                    while (y >= 0 && x < 50000) {
+                        let v = Math.sqrt(vx * vx + vy * vy);
+                        vx += (-0.005 * v * vx) * dt;
+                        vy += (-G - 0.005 * v * vy) * dt;
+                        x += vx * dt;
+                        y += vy * dt;
+                    }
+                    range = x;
+                }
+
+                labels.push(deg);
+                data.push(range);
+            }
+
+            angleChart.data.labels = labels;
+            angleChart.data.datasets[0].data = data;
+            angleChart.update('none');
+        }
+
+        // Custom Canvas fallback for angle vs distance plot if Chart.js is unavailable
+        function drawFallbackChart() {
+            const chartCanvas = document.getElementById('angleChart');
+            if (!chartCanvas) return;
+
+            const rect = chartCanvas.parentElement.getBoundingClientRect();
+            chartCanvas.width = rect.width;
+            chartCanvas.height = rect.height;
+
+            const cCtx = chartCanvas.getContext('2d');
+            const w = chartCanvas.width;
+            const h = chartCanvas.height;
+            cCtx.clearRect(0, 0, w, h);
+
+            cCtx.fillStyle = '#64748b';
+            cCtx.font = '11px sans-serif';
+
+            const data = [];
+            let maxRange = 0;
+            for (let deg = 1; deg <= 89; deg++) {
+                const rad = (deg * Math.PI) / 180;
+                const sin = Math.sin(rad);
+                const cos = Math.cos(rad);
+                const t = (v0 * sin + Math.sqrt(v0 * v0 * sin * sin + 2 * G * height)) / G;
+                const r = v0 * cos * t;
+                data.push({ deg, r });
+                if (r > maxRange) maxRange = r;
+            }
+
+            const padLeft = 40, padBottom = 30, padTop = 10, padRight = 10;
+            const chartW = w - padLeft - padRight;
+            const chartH = h - padBottom - padTop;
+
+            cCtx.strokeStyle = '#1e293b';
+            cCtx.lineWidth = 1;
+            cCtx.beginPath();
+            cCtx.moveTo(padLeft, padTop);
+            cCtx.lineTo(padLeft, h - padBottom);
+            cCtx.lineTo(w - padRight, h - padBottom);
+            cCtx.stroke();
+
+            cCtx.strokeStyle = '#6366f1';
+            cCtx.lineWidth = 2;
+            cCtx.beginPath();
+            data.forEach((pt, i) => {
+                const x = padLeft + (pt.deg / 90) * chartW;
+                const y = h - padBottom - (pt.r / (maxRange || 1)) * chartH;
+                if (i === 0) cCtx.moveTo(x, y);
+                else cCtx.lineTo(x, y);
+            });
+            cCtx.stroke();
+
+            cCtx.fillText('0°', padLeft, h - 10);
+            cCtx.fillText('90°', w - padRight - 20, h - 10);
+            cCtx.fillText(`${maxRange.toFixed(1)}m`, 5, padTop + 10);
+        }
+
+        // Sync inputs and bind event listeners
+        function bindEvents() {
+            // RPM inputs sync
+            rpmSlider.addEventListener('input', (e) => {
+                rpm = parseFloat(e.target.value);
+                rpmInput.value = rpm;
+                calculateKinematics();
+            });
+
+            rpmInput.addEventListener('change', (e) => {
+                let val = Math.max(1, Math.min(10000, parseFloat(e.target.value) || 400));
+                rpm = val;
+                rpmSlider.value = Math.min(2000, val);
+                calculateKinematics();
+            });
+
+            // Radius Slider (1m - 10m)
+            radiusSlider.addEventListener('input', (e) => {
+                radius = parseFloat(e.target.value);
+                calculateKinematics();
+            });
+
+            // Height Slider
+            heightSlider.addEventListener('input', (e) => {
+                height = parseFloat(e.target.value);
+                calculateKinematics();
+            });
+
+            // Aerodynamic Drag Toggle
+            dragToggle.addEventListener('change', (e) => {
+                enableDrag = e.target.checked;
+                calculateKinematics();
+            });
+
+            // Play animation button
+            btnAnimate.addEventListener('click', triggerAnimation);
+        }
+
+        // App Initialization
+        window.onload = function() {
+            initChart();
+            bindEvents();
+            resizeCanvas();
+            calculateKinematics();
+            animProgress = 1;
+            drawSimulation();
+        };
+    </script>
+</body>
+</html>
