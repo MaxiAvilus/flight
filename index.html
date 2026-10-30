@@ -873,149 +873,703 @@
         let currentLang = 'de';
         let currentSoraStep = 1;
 
-        // UI i18n Translations Dictionary
-        const uiTranslations = {
-            de: {
-                searchPlaceholder: "Suche nach Artikel, Annex, SORA, LUC...",
-                hierarchy: "Hierarchie",
-                matrix: "Matrix",
-                regLevels: "Regulierungsebenen",
-                level1: "EBENE 1",
-                level2: "EBENE 2",
-                level3: "EBENE 3",
-                level4: "EBENE 4",
-                level5: "EBENE 5",
-                natLaw: "Nationales Recht (DE)",
-                naaSpecs: "NAA / LBA Vorgaben",
-                opsManual: "Betrieb Handbuch (OM)",
-                soraToolTitle: "10-Schritte SORA Tool",
-                focusBadge: "Fokus: > 25 kg Specific",
-                focusDesc: "Drohnen über 25 kg unterliegen der Einzelprüfung (SORA / DVR). Standard-Szenarien (STS) greifen hier in der Regel nicht direkt ohne LUC-Geltung.",
-                navHierarchy: "Dokumenten-Hierarchie & Recht",
-                navSora: "SORA 10-Schritte Prozess & Versionsvergleich",
-                filterActive: "Suchergebnisse gefiltered.",
-                resetFilter: "Filter zurücksetzen",
-                lvl1Title: "ICAO Level & JARUS (Völkerrecht & Regulierungs-Empfehlungen)",
-                lvl1Desc: "Weltweiter Rahmen für Zivilluftfahrt, Sicherheitsmanagement und die internationalen JARUS-Empfehlungen für die SORA-Methodik.",
-                lvl2Title: "EU Level (Unmittelbares EU-Recht, EASA AMC/GM & SERA)",
-                lvl2Desc: "Harmonisierter Rechtsrahmen in allen EU-Mitgliedstaaten, inklusive der Standard-Europäischen Flugregeln (SERA).",
-                lvl3Title: "Nationales Recht Deutschland (Ergänzender Rahmen)",
-                lvl3Desc: "Regelt nationale Zuständigkeiten, Geografische Gebiete, Versicherung und Zivilrecht.",
-                lvl4Title: "NAA Ebene (Luftfahrt-Bundesamt - LBA)",
-                lvl4Desc: "Nationale Aufsichtsbehörde in Deutschland. Zuständig für Erteilung von Betriebsgenehmigungen, LUC und SORA Evaluierung >25kg.",
-                lvl5Title: "Betreiberebene (Operations Manual & LUC Dokumentation)",
-                lvl5Desc: "Vom Betreiber zu erstellendes Handbuch (OM Parts A–D). Werden durch LBA geprüft und genehmigt bzw. berechtigen zur Selbstaustellung von Autorisierungen.",
-                lblConnection: "Verbindung",
-                lblBasisFor: "Basis für",
-                lblJarusAuthor: "Internat. SORA Urheber",
-                lblCoreReg: "Kern-Verordnung",
-                lblFlightRules: "Flugregeln",
-                lblAirspaceRules: "Luftraum & Ausweichregeln",
-                lblTechDesign: "Technik & Bau",
-                lblFocusDVR: "Fokus: DVR / Part 21",
-                lblContainsSora: "Enthält: SORA v2.0 / v2.5",
-                lblReporting: "Meldewesen",
-                lblIntegrationAD: "Integration: OM Part A & D",
-                lblBasicReg: "Grundverordnung",
-                lblLaw: "Gesetz",
-                lblOrdinance: "Verordnung",
-                lblConstLaw: "Staatsrecht",
-                lblPropPrivacy: "Eigentum & Datenschutz",
-                lblNaaGuide: "LBA Richtlinie",
-                lblNotice: "Bekanntmachung",
-                soraHeaderTag: "JARUS SORA Process Map",
-                soraHeaderTitle: "Interaktiver SORA 10-Schritte Evaluator",
-                soraHeaderDesc: "Vergleiche die Eingabedaten, Auswertungslogiken (Tabellen) und Robustheitskriterien zwischen SORA 2.0 und SORA 2.5.",
-                robustnessFormulaLabel: "Robustheits-Formel:",
-                robustnessLevels: "Low / Medium / High (Gilt für Mitigations & OSOs)",
-                requiredInputs: "Erforderliche Inputs / Daten",
-                versionDiffs: "Unterschiede: SORA 2.0 vs. SORA 2.5",
-                tableOutput: "Tabellen-Ermittlung & Matrix Output",
-                whatMustBeRobust: "Was muss robust sein? (OM Verbindung)",
-                omIntegration: "Einbindung in das Operations Manual:",
-                summaryTitle: "Zusammenfassung & Zweck",
-                articlesTitle: "Relevante Artikel, Anhänge & Abschnitte",
-                lucImpactTitle: "Spezifische Bedeutung für >25kg LUC-Betrieb",
-                omConnectTitle: "Verknüpfte Handbuch-Bestandteile (OM)",
-                closeModal: "Schließen",
-                thDoc: "Dokument",
-                thLevel: "Ebene",
-                thArticles: "Relevante Artikel / Annexes",
-                thImpact: "Bedeutung für >25kg LUC",
-                thAction: "Aktion",
-                btnDetails: "Details"
+        // --- FULLY BILINGUAL DOCUMENTATION DATABASE ---
+        const docDatabase = {
+            annex19: {
+                id: 'annex19',
+                level: { de: 'EBENE 1 (ICAO)', en: 'LEVEL 1 (ICAO)' },
+                title: 'ICAO Annex 19',
+                subtitle: { de: 'Safety Management', en: 'Safety Management Framework' },
+                description: {
+                    de: 'Standardisiert grundlegende Anforderungen an das Sicherheitsmanagementsystem (SMS) von Luftfahrtorganisationen weltweit.',
+                    en: 'Standardizes fundamental Safety Management System (SMS) requirements for aviation organizations globally.'
+                },
+                lucImpact: {
+                    de: 'Direktes Fundament für den Erhalt eines LUC (Light UAS Operator Certificate). Ein LUC-Inhaber muss nachweislich ein voll funktionsfähiges SMS betreiben.',
+                    en: 'Direct foundation for obtaining a LUC (Light UAS Operator Certificate). A LUC holder must demonstrably operate a fully functional SMS.'
+                },
+                articles: [
+                    { code: 'Chapter 3', title: { de: 'State Safety Oversight', en: 'State Safety Oversight' }, text: { de: 'Pflichten des Staates zur Sicherheitsaufsicht.', en: 'State responsibilities for safety oversight.' } },
+                    { code: 'Chapter 4', title: { de: 'Safety Management System (SMS)', en: 'Safety Management System (SMS)' }, text: { de: 'Anforderungen an Betreiber zur Einrichtung eines SMS.', en: 'Operator requirements for establishing an SMS framework.' } },
+                    { code: 'Appendix 2', title: { de: 'SMS Framework', en: 'SMS Framework' }, text: { de: 'Die 4 Säulen des SMS: Safety Policy, Risk Management, Safety Assurance, Safety Promotion.', en: 'The 4 pillars of SMS: Safety Policy, Risk Management, Safety Assurance, Safety Promotion.' } }
+                ],
+                omConnections: ['OM Part D (SMS Manual)']
             },
-            en: {
-                searchPlaceholder: "Search article, annex, SORA, LUC...",
-                hierarchy: "Hierarchy",
-                matrix: "Matrix",
-                regLevels: "Regulatory Levels",
-                level1: "LEVEL 1",
-                level2: "LEVEL 2",
-                level3: "LEVEL 3",
-                level4: "LEVEL 4",
-                level5: "LEVEL 5",
-                natLaw: "National Law (DE)",
-                naaSpecs: "NAA / LBA Guidelines",
-                opsManual: "Operations Manual (OM)",
-                soraToolTitle: "10-Step SORA Tool",
-                focusBadge: "Focus: > 25 kg Specific",
-                focusDesc: "Drones over 25 kg require individual evaluation (SORA / DVR). Standard Scenarios (STS) generally do not apply directly without LUC scope.",
-                navHierarchy: "Regulatory Hierarchy & Framework",
-                navSora: "SORA 10-Step Process & Version Comparison",
-                filterActive: "Search results filtered.",
-                resetFilter: "Reset filter",
-                lvl1Title: "ICAO Level & JARUS (International Law & Regulatory Recommendations)",
-                lvl1Desc: "Global framework for civil aviation, safety management, and international JARUS recommendations for SORA methodology.",
-                lvl2Title: "EU Level (Direct EU Law, EASA AMC/GM & SERA)",
-                lvl2Desc: "Harmonized regulatory framework across all EU Member States, including Standard European Rules of the Air (SERA).",
-                lvl3Title: "National Law Germany (Complementary Framework)",
-                lvl3Desc: "Regulates national competencies, geographical zones (§ 21h LuftVO), insurance, and civil law.",
-                lvl4Title: "NAA Level (German Federal Aviation Office - LBA)",
-                lvl4Desc: "National Competent Authority in Germany. Responsible for issuing operational authorizations, LUC, and SORA evaluations >25kg.",
-                lvl5Title: "Operator Level (Operations Manual & LUC Documentation)",
-                lvl5Desc: "Operator manual framework (OM Parts A–D). Approved by LBA or enabling self-issuance of operational authorizations.",
-                lblConnection: "Connection",
-                lblBasisFor: "Basis for",
-                lblJarusAuthor: "Internat. SORA Author",
-                lblCoreReg: "Core Regulation",
-                lblFlightRules: "Rules of the Air",
-                lblAirspaceRules: "Airspace & Right of Way",
-                lblTechDesign: "Technical & Design",
-                lblFocusDVR: "Focus: DVR / Part 21",
-                lblContainsSora: "Contains: SORA v2.0 / v2.5",
-                lblReporting: "Reporting",
-                lblIntegrationAD: "Integration: OM Part A & D",
-                lblBasicReg: "Basic Regulation",
-                lblLaw: "Statute Law",
-                lblOrdinance: "Regulation",
-                lblConstLaw: "Constitutional Law",
-                lblPropPrivacy: "Property & Privacy",
-                lblNaaGuide: "LBA Guidance",
-                lblNotice: "Official Notice",
-                soraHeaderTag: "JARUS SORA Process Map",
-                soraHeaderTitle: "Interactive SORA 10-Step Evaluator",
-                soraHeaderDesc: "Compare input parameters, evaluation logic (tables) and robustness criteria between SORA 2.0 and SORA 2.5.",
-                robustnessFormulaLabel: "Robustness Formula:",
-                robustnessLevels: "Low / Medium / High (Applies to Mitigations & OSOs)",
-                requiredInputs: "Required Inputs / Data",
-                versionDiffs: "Differences: SORA 2.0 vs. SORA 2.5",
-                tableOutput: "Table Determination & Matrix Output",
-                whatMustBeRobust: "What needs to be robust? (OM Link)",
-                omIntegration: "Integration into Operations Manual:",
-                summaryTitle: "Summary & Purpose",
-                articlesTitle: "Relevant Articles, Annexes & Sections",
-                lucImpactTitle: "Specific Impact for >25kg LUC Operations",
-                omConnectTitle: "Linked Manual Sections (OM)",
-                closeModal: "Close",
-                thDoc: "Document",
-                thLevel: "Level",
-                thArticles: "Relevant Articles / Annexes",
-                thImpact: "Impact on >25kg LUC",
-                thAction: "Action",
-                btnDetails: "Details"
+            doc9859: {
+                id: 'doc9859',
+                level: { de: 'EBENE 1 (ICAO)', en: 'LEVEL 1 (ICAO)' },
+                title: 'ICAO Doc 9859',
+                subtitle: { de: 'Safety Management Manual (SMM)', en: 'Safety Management Manual (SMM)' },
+                description: {
+                    de: 'Der praktische Leitfaden der ICAO zur Umsetzung der Grundsätze aus Annex 19.',
+                    en: 'ICAO guidance material providing practical methods to implement Annex 19 principles.'
+                },
+                lucImpact: {
+                    de: 'Wird vom LBA als Benchmark herangezogen, um das SMS im OM Part D eines LUC-Antragstellers zu bewerten.',
+                    en: 'Used as the authority benchmark by LBA to evaluate the SMS in OM Part D for LUC applicants.'
+                },
+                articles: [
+                    { code: 'Chapter 2', title: { de: 'Safety Fundamentals', en: 'Safety Fundamentals' }, text: { de: 'Grundbegriffe: Hazard, Risk, ALARP-Prinzip.', en: 'Core concepts: Hazard identification, Risk assessment, ALARP principle.' } },
+                    { code: 'Chapter 9', title: { de: 'SMS Operation', en: 'SMS Operation' }, text: { de: 'Konkrete Leitfäden zur Durchführung von Risikobewertungen.', en: 'Detailed guidelines for executing risk assessments and safety assurance.' } }
+                ],
+                omConnections: ['OM Part D (Safety Management Manual)']
+            },
+            annex13: {
+                id: 'annex13',
+                level: { de: 'EBENE 1 (ICAO)', en: 'LEVEL 1 (ICAO)' },
+                title: 'ICAO Annex 13',
+                subtitle: { de: 'Accident & Incident Investigation', en: 'Aircraft Accident & Incident Investigation' },
+                description: {
+                    de: 'Internationale Standards für die Untersuchung von Flugunfällen und schweren Störungen.',
+                    en: 'International standards for aircraft accident and serious incident investigation.'
+                },
+                lucImpact: {
+                    de: 'Definiert die Kriterien, nach denen Vorfälle durch die BFU (Bundesstelle für Flugunfalluntersuchung) untersucht werden.',
+                    en: 'Defines criteria under which occurrences are investigated by national accident investigation bodies (e.g. BFU in Germany).'
+                },
+                articles: [
+                    { code: 'Chapter 4', title: { de: 'Notification', en: 'Notification' }, text: { de: 'Unverzügliche Meldepflicht bei Unfällen.', en: 'Immediate notification duties in case of accidents.' } },
+                    { code: 'Chapter 5', title: { de: 'Investigation', en: 'Investigation' }, text: { de: 'Ablauf der Untersuchung ohne Schuldzuweisung.', en: 'Investigation process aiming at cause prevention without assigning blame.' } }
+                ],
+                omConnections: ['OM Part A (Section 11: Emergency & Incidents)']
+            },
+            jarus_sora: {
+                id: 'jarus_sora',
+                level: { de: 'EBENE 1 (JARUS)', en: 'LEVEL 1 (JARUS)' },
+                title: 'JARUS SORA Guidelines',
+                subtitle: { de: 'Specific Operations Risk Assessment', en: 'Specific Operations Risk Assessment Guidelines' },
+                description: {
+                    de: 'International entwickeltes Framework zur Risikobewertung von Drohnenflügen in der Speziellen Kategorie.',
+                    en: 'Internationally developed framework for assessing drone operational risk in the Specific Category.'
+                },
+                lucImpact: {
+                    de: 'Bildet das Herzstück für jede Genehmigung >25kg sowie die Grundlage für LUC-Inhaber zur eigenständigen Autorisierung von Flügen.',
+                    en: 'Forms the core requirement for operations >25kg and enables LUC holders to self-authorize risk-assessed flight operations.'
+                },
+                articles: [
+                    { code: 'Main Doc', title: { de: '10 SORA Steps', en: '10 SORA Steps' }, text: { de: 'Die 10 Schritte von ConOps bis Safety Portfolio.', en: '10 sequential steps from ConOps definition to Safety Portfolio compilation.' } },
+                    { code: 'Annex E', title: { de: 'OSOs Katalog', en: 'OSOs Catalog' }, text: { de: 'Katalog von 24 Operational Safety Objectives.', en: 'Catalog of 24 Operational Safety Objectives with Low/Med/High requirements.' } }
+                ],
+                omConnections: ['OM Part C (ConOps & SORA)', 'OM Part B (Design & Systems)']
+            },
+            eu2019_947: {
+                id: 'eu2019_947',
+                level: { de: 'EBENE 2 (EU Law)', en: 'LEVEL 2 (EU Law)' },
+                title: 'DVO (EU) 2019/947',
+                subtitle: { de: 'Durchführungsverordnung UAS', en: 'UAS Implementing Regulation' },
+                description: {
+                    de: 'Das fundamentale EU-Recht für den Betrieb unbemannter Luftfahrzeuge.',
+                    en: 'The core EU regulation governing all unmanned aircraft operations across EU member states.'
+                },
+                lucImpact: {
+                    de: 'Zentrales Regelwerk. Artikel 11 schreibt SORA vor. Anhang Teil C regelt die Beantragung, Rechte und Pflichten eines LUC-Inhabers.',
+                    en: 'Central regulation. Article 11 mandates SORA. Annex Part C regulates LUC application, rights, and operator obligations.'
+                },
+                articles: [
+                    { code: 'Article 11', title: { de: 'Risikobewertung', en: 'Risk Assessment' }, text: { de: 'Verpflichtung zur SORA-Risikobewertung in der Kategorie Specific.', en: 'Obligation to perform a SORA risk assessment in the Specific Category.' } },
+                    { code: 'Article 12', title: { de: 'Genehmigung', en: 'Operational Authorization' }, text: { de: 'Erteilung der Betriebsgenehmigung durch die NAA (LBA).', en: 'Issuance of operational authorization by the competent authority (LBA).' } },
+                    { code: 'Annex Part C', title: { de: 'LUC Requirements', en: 'LUC Requirements' }, text: { de: 'Voraussetzungen für Erteilung, Betreiberrechte und Überwachung des LUC.', en: 'LUC privileges, compliance monitoring, and organizational responsibilities.' } }
+                ],
+                omConnections: ['OM Part A (General)', 'OM Part C (SORA)', 'OM Part D (SMS)']
+            },
+            sera_eu: {
+                id: 'sera_eu',
+                level: { de: 'EBENE 2 (EU Law)', en: 'LEVEL 2 (EU Law)' },
+                title: 'SERA - VO (EU) 923/2012',
+                subtitle: { de: 'Standard European Rules of the Air', en: 'Standard European Rules of the Air' },
+                description: {
+                    de: 'Vereinheitlichte europäische Flugregeln für den gesamten kontrollierten und unkontrollierten Luftraum.',
+                    en: 'Standardized European flight rules applicable across all controlled and uncontrolled airspace.'
+                },
+                lucImpact: {
+                    de: 'Einfluss auf SORA Tactical Mitigations (Step 6 / TMPR). Drohnen über 25 kg müssen SERA-Ausweichregeln und Höhenbegrenzungen einhalten.',
+                    en: 'Impacts SORA Tactical Mitigations (Step 6 / TMPR). Drones >25kg must adhere to right-of-way and airspace rules.'
+                },
+                articles: [
+                    { code: 'SERA.3210', title: { de: 'Ausweichregeln', en: 'Right-of-Way Rules' }, text: { de: 'Vermeidung von Zusammenstößen in der Luft.', en: 'Vigilance and avoidance of collisions between aircraft.' } },
+                    { code: 'SERA.5005', title: { de: 'VFR Flugregeln', en: 'VFR Flight Rules' }, text: { de: 'Sicherheitsmindesthöhen und Sichtwetterbedingungen.', en: 'Minimum flight altitudes and Visual Meteorological Conditions (VMC).' } }
+                ],
+                omConnections: ['OM Part C (Flight Rules & Airspace Protocols)']
+            },
+            eu2019_945: {
+                id: 'eu2019_945',
+                level: { de: 'EBENE 2 (EU Law)', en: 'LEVEL 2 (EU Law)' },
+                title: 'VO (EU) 2019/945',
+                subtitle: { de: 'UAS Produktkonformität', en: 'UAS Design & Market Requirements' },
+                description: {
+                    de: 'Regelt Anforderungen an Konstruktion, Herstellung und CE-Klassen (C0-C6) von Drohnen.',
+                    en: 'Defines product design, manufacturing, and CE class identification requirements (C0-C6).'
+                },
+                lucImpact: {
+                    de: 'Für Drohnen >25kg gibt es meist keine CE-Klassenkennzeichnung. Hier verlangt EASA ein Design Verification Report (DVR).',
+                    en: 'Drones >25kg generally lack CE class marks and require an EASA Design Verification Report (DVR) or Part 21 approval.'
+                },
+                articles: [
+                    { code: 'Article 4', title: { de: 'Marktbereitstellung', en: 'Market Availability' }, text: { de: 'Herstellerpflichten und Konformitätsbewertung.', en: 'Manufacturer duties and conformity assessment procedures.' } }
+                ],
+                omConnections: ['OM Part B (Systems & Maintenance)']
+            },
+            easa_ear: {
+                id: 'easa_ear',
+                level: { de: 'EBENE 2 (EASA Soft Law)', en: 'LEVEL 2 (EASA Soft Law)' },
+                title: 'EASA Easy Access Rules',
+                subtitle: { de: 'AMC & GM zu DVO 2019/947', en: 'AMC & GM for Regulation (EU) 2019/947' },
+                description: {
+                    de: 'Von der EASA veröffentlichte Leitfäden, akzeptierte Nachweisverfahren (AMC) und Orientierungshilfen (GM).',
+                    en: 'EASA guidance material, Acceptable Means of Compliance (AMC), and Guidance Material (GM).'
+                },
+                lucImpact: {
+                    de: 'Kritisch für SORA-Anwendung (AMC1 zu Artikel 11) und Nachweise im LUC Compliance Management System.',
+                    en: 'Critical for applying SORA (AMC1 to Article 11) and establishing LUC Compliance Management System procedures.'
+                },
+                articles: [
+                    { code: 'AMC1 Art. 11', title: { de: 'SORA Methodik', en: 'SORA Methodology' }, text: { de: 'Vollständiges Regelwerk zur Durchführung einer SORA.', en: 'Complete specification for executing SORA assessments.' } },
+                    { code: 'AMC1 Part C', title: { de: 'LUC Operations', en: 'LUC Operations' }, text: { de: 'Leitfaden für den Aufbau des LUC Handbuchs und Audits.', en: 'Guidance for structuring LUC manuals, audits, and internal approvals.' } }
+                ],
+                omConnections: ['OM Part A, B, C, D (Complete Structure)']
+            },
+            eu376_2014: {
+                id: 'eu376_2014',
+                level: { de: 'EBENE 2 (EU Law)', en: 'LEVEL 2 (EU Law)' },
+                title: 'VO (EU) 376/2014',
+                subtitle: { de: 'Ereignismeldewesen in der Zivilluftfahrt', en: 'Occurrence Reporting in Civil Aviation' },
+                description: {
+                    de: 'Regelt die verpflichtende und freiwillige Meldung von Sicherheitsvorfällen zur Erhöhung der Flugsicherheit.',
+                    en: 'Mandates compulsory and voluntary reporting of safety occurrences to enhance overall aviation safety.'
+                },
+                lucImpact: {
+                    de: 'LUC-Betreiber müssen Occurrence Reporting Prozesse direkt im OM Part A & D integrieren und an ECCAIRS2 melden.',
+                    en: 'LUC operators must integrate occurrence reporting directly in OM Part A & D and report to ECCAIRS2 portal.'
+                },
+                articles: [
+                    { code: 'Article 4', title: { de: 'Meldepflichtige Ereignisse', en: 'Mandatory Reporting' }, text: { de: 'Pflicht zur Meldung binnen 72 Stunden an LBA und EASA.', en: 'Obligation to report incidents within 72 hours to authority (LBA).' } }
+                ],
+                omConnections: ['OM Part A (Reporting Procedures)', 'OM Part D (SMS Occurrence Analysis)']
+            },
+            eu2018_1139: {
+                id: 'eu2018_1139',
+                level: { de: 'EBENE 2 (EU Law)', en: 'LEVEL 2 (EU Law)' },
+                title: 'VO (EU) 2018/1139',
+                subtitle: { de: 'EASA Grundverordnung', en: 'EASA Basic Regulation' },
+                description: {
+                    de: 'Oberstes Stammrecht für die Flugsicherheit in der Europäischen Union.',
+                    en: 'High-level framework law governing civil aviation safety in the European Union.'
+                },
+                lucImpact: {
+                    de: 'Übergeordnete Rechtsgrundlage, aus der die Befugnisse für EASA-Zertifizierungen (z. B. DVR für Drohnen >25kg) hervorgehen.',
+                    en: 'High-level mandate establishing EASA powers, type certifications, and design approvals for heavy drones (>25kg).'
+                },
+                articles: [
+                    { code: 'Article 55', title: { de: 'UAS Essential Requirements', en: 'UAS Essential Requirements' }, text: { de: 'Grundlegende Sicherheitsanforderungen an alle unbemannten Luftfahrzeuge.', en: 'Essential requirements for unmanned aircraft safety and environmental compatibility.' } }
+                ],
+                omConnections: ['OM Part B (Design Conformity)']
+            },
+            luftvg: {
+                id: 'luftvg',
+                level: { de: 'EBENE 3 (National DE)', en: 'LEVEL 3 (National Law DE)' },
+                title: 'LuftVG',
+                subtitle: { de: 'Deutsches Luftverkehrsgesetz', en: 'German Aviation Act' },
+                description: {
+                    de: 'Gesetzliche Grundlage für die Luftfahrt im deutschen Hoheitsgebiet.',
+                    en: 'Federal law providing the legal foundation for civil aviation in Germany.'
+                },
+                lucImpact: {
+                    de: 'Klassifiziert Drohnen juristisch als Luftfahrzeuge (§1) und regelt die verschuldensunabhängige Halterhaftung (§43 LuftVG) & Versicherung.',
+                    en: 'Classifies drones legally as aircraft (§1) and establishes strict liability (§43 LuftVG) and mandatory insurance.'
+                },
+                articles: [
+                    { code: '§ 1 LuftVG', title: { de: 'Luftfahrzeuge', en: 'Aircraft Definition' }, text: { de: 'Unbemannte Luftfahrtsysteme gelten rechtlich als Luftfahrzeuge.', en: 'Unmanned aircraft systems are legally defined as aircraft.' } },
+                    { code: '§ 43 LuftVG', title: { de: 'Haftung & Versicherung', en: 'Liability & Insurance' }, text: { de: 'Verpflichtung zum Nachweis einer Luftfahrthaftpflichtversicherung.', en: 'Mandatory third-party aviation liability insurance coverage.' } }
+                ],
+                omConnections: ['OM Part A (Insurance & Legal Compliance)']
+            },
+            luftvo: {
+                id: 'luftvo',
+                level: { de: 'EBENE 3 (National DE)', en: 'LEVEL 3 (National Law DE)' },
+                title: 'LuftVO',
+                subtitle: { de: 'Deutsche Luftverkehrs-Ordnung', en: 'German Air Traffic Regulations' },
+                description: {
+                    de: 'Konkretisiert nationale Verhaltensregeln im Luftraum und geographische Beschränkungen.',
+                    en: 'Detailing operational rules in German airspace and specifying geographical restrictions.'
+                },
+                lucImpact: {
+                    de: '§ 21h LuftVO definiert Geografische Zonen in Deutschland (z. B. Abstände zu Bundesfernstraßen, Wohngebieten, Flugplätzen).',
+                    en: '§ 21h LuftVO sets national geographical zones (e.g. operational buffers near highways, residential areas, airports).'
+                },
+                articles: [
+                    { code: '§ 21h LuftVO', title: { de: 'Geografische Zonen', en: 'Geographical Zones' }, text: { de: 'Betriebsverbote und Ausnahmegenehmigungen in sensiblen Zonen.', en: 'Prohibited areas and authorization protocols for sensitive zones.' } }
+                ],
+                omConnections: ['OM Part C (Flight Planning & Zone Checklists)']
+            },
+            gg_bgb: {
+                id: 'gg_bgb',
+                level: { de: 'EBENE 3 (National DE)', en: 'LEVEL 3 (National Law DE)' },
+                title: 'Grundgesetz (GG) / BGB',
+                subtitle: { de: 'Deutsches Verfassungs- & Zivilrecht', en: 'German Constitutional & Civil Code' },
+                description: {
+                    de: 'Schutz von Grundrechten, Eigentum und Datenschutz im Kontext von Drohnenflügen.',
+                    en: 'Protection of fundamental civil rights, private property, and data privacy during drone flights.'
+                },
+                lucImpact: {
+                    de: 'Verpflichtet LUC-Betreiber zur Einhaltung von Persönlichkeitsrechten (Art. 2 GG, DSGVO) und Grundstücksüberflugsrechten (§ 905 BGB).',
+                    en: 'Requires LUC operators to respect privacy laws (Art. 2 GG, GDPR) and property overflight rights (§ 905 BGB).'
+                },
+                articles: [
+                    { code: 'Art. 2 / 14 GG', title: { de: 'Persönlichkeit & Eigentum', en: 'Privacy & Property' }, text: { de: 'Schutz vor Kamerasensorik und unbefugtem Überflug.', en: 'Protection against unauthorized aerial surveillance and trespass.' } }
+                ],
+                omConnections: ['OM Part A (Privacy Policy & Sensor Guidelines)']
+            },
+            lba_sora: {
+                id: 'lba_sora',
+                level: { de: 'EBENE 4 (NAA - LBA)', en: 'LEVEL 4 (NAA - LBA)' },
+                title: 'LBA SORA Leitfaden & Vorlagen',
+                subtitle: { de: 'Nationale Auslegung des Luftfahrt-Bundesamtes', en: 'LBA National Guidance Material' },
+                description: {
+                    de: 'Offizielle Vorlagen und Prüfkriterien der deutschen Luftfahrtbehörde für SORA Anträge.',
+                    en: 'Official guidance and evaluation criteria provided by the German Federal Aviation Office (LBA).'
+                },
+                lucImpact: {
+                    de: 'Enthält strikte Vorgaben für Enhanced Containment ($10^{-4}/h$ Nachweis) und EASA DVR Anforderung bei Drohnen >25kg.',
+                    en: 'Imposes strict proof requirements for Enhanced Containment ($10^{-4}/h$ failure rate) and DVR for drones >25kg.'
+                },
+                articles: [
+                    { code: 'LBA Formular 1', title: { de: 'SORA Antrag', en: 'SORA Application Form' }, text: { de: 'Standardisiertes Deckblatt zur Risikobewertung.', en: 'Standardized cover form for SORA authorization submission.' } },
+                    { code: 'LBA Formular 2', title: { de: 'ConOps Template', en: 'ConOps Template' }, text: { de: 'Vorgabe zur Erstellung des Betriebskonzepts.', en: 'Required layout for describing Concept of Operations.' } }
+                ],
+                omConnections: ['OM Part C (ConOps & SORA Submissions)']
+            },
+            lba_nfl: {
+                id: 'lba_nfl',
+                level: { de: 'EBENE 4 (NAA - LBA)', en: 'LEVEL 4 (NAA - LBA)' },
+                title: 'NfL (Nachrichten für Luftfahrer)',
+                subtitle: { de: 'Amtliche Bekanntmachungen LBA', en: 'Official Notices for Airmen' },
+                description: {
+                    de: 'Veröffentlichungen zu Flugfunkpflichten, Transponder-Regelungen und Beschränkungsgebieten in Deutschland.',
+                    en: 'Official notices on aeronautical radio usage, transponder requirements, and airspace restrictions.'
+                },
+                lucImpact: {
+                    de: 'Definiert Anforderungen an Fernmeldesprechfunkzeugnisse (BZF/AZF) für Fernpiloten bei Flügen in CTR/TMZ.',
+                    en: 'Defines aeronautical radio certification (BZF/AZF) requirements for remote pilots operating in CTR/TMZ zones.'
+                },
+                articles: [
+                    { code: 'NfL I/II', title: { de: 'Betriebsmitteilungen', en: 'Operational Bulletins' }, text: { de: 'Verbindliche Vorgaben zur Luftraumnutzung.', en: 'Binding operational directives for airspace integration.' } }
+                ],
+                omConnections: ['OM Part A & C (Radio Operator Standards)']
+            },
+            om_part_a: {
+                id: 'om_part_a',
+                level: { de: 'EBENE 5 (Betreiber / LUC)', en: 'LEVEL 5 (Operator / LUC)' },
+                title: 'OM Part A - General',
+                subtitle: { de: 'Organisation & LUC Management', en: 'General Administration & LUC Scope' },
+                description: {
+                    de: 'Unternehmensstruktur, Aufgaben der Schlüsselpersonen (Accountable Manager, Safety Manager) und LUC-Privilegien.',
+                    en: 'Corporate structure, key personnel roles (Accountable Manager, Safety Manager), and LUC scope.'
+                },
+                lucImpact: {
+                    de: 'Regelt die internen Genehmigungsprozesse. Ermöglicht dem Betreiber die Eigenbefundung von Flügen im Rahmen des LUC.',
+                    en: 'Establishes internal approval workflows enabling the operator to self-authorize flights under LUC privileges.'
+                },
+                articles: [
+                    { code: 'Section 2', title: { de: 'LUC Privilegien', en: 'LUC Privileges' }, text: { de: 'Verfahren zur Selbstaustellung von Betreibergenehmigungen.', en: 'Internal process for self-issuing operational authorizations.' } },
+                    { code: 'Section 11', title: { de: 'Meldewesen', en: 'Occurrence Reporting' }, text: { de: 'Abläufe gemäß VO (EU) 376/2014.', en: 'Reporting workflows complying with Regulation (EU) No 376/2014.' } }
+                ],
+                omConnections: ['LUC Certificate File', 'EU 2019/947 Part C']
+            },
+            om_part_b: {
+                id: 'om_part_b',
+                level: { de: 'EBENE 5 (Betreiber / LUC)', en: 'LEVEL 5 (Operator / LUC)' },
+                title: 'OM Part B - Systems',
+                subtitle: { de: 'Technische Dokumentation >25kg', en: 'Technical Systems & Aircraft Data' },
+                description: {
+                    de: 'Technische Spezifikationen des UAS >25kg, Wartungshandbücher, Checklisten und EASA DVR Nachweise.',
+                    en: 'Technical data for heavy drones (>25kg), maintenance manuals, inspection schedules, and EASA DVR files.'
+                },
+                lucImpact: {
+                    de: 'Enthält den Nachweis der Lufttüchtigkeit und die Konformität aller technischen OSOs (z. B. OSO #06, OSO #10, OSO #12).',
+                    en: 'Contains proof of airworthiness and compliance evidence for all technical OSOs (e.g. OSO #06, #10, #12).'
+                },
+                articles: [
+                    { code: 'Section 1', title: { de: 'Systembeschreibung', en: 'System Description' }, text: { de: 'Detaillierte Hardware/Software Spezifikationen.', en: 'Detailed hardware and software specs of aircraft >25kg.' } },
+                    { code: 'Section 4', title: { de: 'Wartung & DVR', en: 'Maintenance & DVR' }, text: { de: 'Instandhaltungsplan & EASA Design Verification File.', en: 'Maintenance schedule & EASA Design Verification Report.' } }
+                ],
+                omConnections: ['VO (EU) 2019/945', 'EASA DVR Certificates']
+            },
+            om_part_c: {
+                id: 'om_part_c',
+                level: { de: 'EBENE 5 (Betreiber / LUC)', en: 'LEVEL 5 (Operator / LUC)' },
+                title: 'OM Part C - Operations',
+                subtitle: { de: 'ConOps, SORA & Flugbetrieb', en: 'ConOps, SORA & Operational Protocols' },
+                description: {
+                    de: 'Konkrete Flugverfahren, SORA-Dossiers für Einsatzgebiete, Notfallverfahren (ERP) und Checklisten.',
+                    en: 'Operational procedures, SORA dossiers per operating area, Emergency Response Plan (ERP), and flight checklists.'
+                },
+                lucImpact: {
+                    de: 'Herzstück jeder Fluggenehmigung. Dient als Nachweis für das LBA oder den internen LUC Approver zur Freigabe von Einsätzen.',
+                    en: 'Heart of flight operations. Serves as proof for the LBA or internal LUC Approver to execute flight missions.'
+                },
+                articles: [
+                    { code: 'Section 3', title: { de: 'SORA Risk Assessments', en: 'SORA Risk Assessments' }, text: { de: 'Ermittlung GRC, ARC, SAIL, OSOs.', en: 'Calculations for GRC, ARC, SAIL level, and OSO compliance.' } },
+                    { code: 'Section 8', title: { de: 'ERP (Emergency Response)', en: 'Emergency Response Plan (ERP)' }, text: { de: 'Notfallplan bei Kontrollverlust oder Absturz.', en: 'Emergency response protocol for loss of control or crash.' } }
+                ],
+                omConnections: ['JARUS SORA Guidelines', 'LuftVO § 21h']
+            },
+            om_part_d: {
+                id: 'om_part_d',
+                level: { de: 'EBENE 5 (Betreiber / LUC)', en: 'LEVEL 5 (Operator / LUC)' },
+                title: 'OM Part D - Training & SMS',
+                subtitle: { de: 'Schulungen & Safety Management Manual', en: 'Training Curricula & Safety Management' },
+                description: {
+                    de: 'Basiert auf ICAO Doc 9859. Enthält Schulungscurricula für Fernpiloten sowie das vollständige SMS Handbuch.',
+                    en: 'Based on ICAO Doc 9859. Contains pilot training curricula and the complete Safety Management System (SMS) manual.'
+                },
+                lucImpact: {
+                    de: 'Das SMS ist die zwingende rechtliche Voraussetzung für die Erteilung und Aufrechterhaltung eines LUC.',
+                    en: 'The SMS is a mandatory legal prerequisite for issuing and maintaining a Light UAS Operator Certificate (LUC).'
+                },
+                articles: [
+                    { code: 'Section 1', title: { de: 'SMS Framework', en: 'SMS Framework' }, text: { de: 'Gefahrenidentifizierung, Safety Risk Management, Assurance.', en: 'Hazard identification, Safety Risk Assessment, Safety Assurance.' } },
+                    { code: 'Section 3', title: { de: 'Piloten-Qualifikation', en: 'Remote Pilot Training' }, text: { de: 'Schulungscurriculum für Drohnen >25kg und BVLOS.', en: 'Training curriculum for operating drones >25kg and BVLOS.' } }
+                ],
+                omConnections: ['ICAO Annex 19', 'ICAO Doc 9859']
             }
         };
+
+        // --- BILINGUAL SORA STEPS ARRAY ---
+        const soraSteps = [
+            {
+                step: 1,
+                title: { de: "ConOps Beschreibung", en: "ConOps Description" },
+                subtitle: { de: "Concept of Operations", en: "Concept of Operations" },
+                annexRef: "JARUS Annex A",
+                inputs: {
+                    de: ["UAS Geometrie (Flügelspannweite / Diagonale)", "Kinetische Energie / Joules (SORA 2.0)", "Maximale Geschwindigkeit Vmax (SORA 2.5)", "Betriebsart (VLOS / BVLOS)", "Überflogene Umgebung (Besiedelung)"],
+                    en: ["UAS Dimensions (Wing span / Diagonal)", "Kinetic Energy / Joules (SORA 2.0)", "Maximum Speed Vmax (SORA 2.5)", "Operation Type (VLOS / BVLOS)", "Overflown Ground Environment (Population)"]
+                },
+                v20: {
+                    de: "SORA 2.0 klassifiziert das UAS primär nach Kinetischer Energie (z. B. < 34 kJ) und charakteristischer Dimension.",
+                    en: "SORA 2.0 classifies the UAS primarily by Kinetic Energy (e.g. < 34 kJ) and characteristic dimension."
+                },
+                v25: {
+                    de: "SORA 2.5 verzichtet auf Kinetische Energie in Joules und nutzt Vmax (m/s) in Kombination mit der charakteristischen Dimension.",
+                    en: "SORA 2.5 removes Joules kinetic energy calculations and uses Vmax (m/s) combined with characteristic dimensions."
+                },
+                tableInfo: {
+                    de: "Keine direkte Risikotabelle. Auslesen der technischen Werte zur Vorbereitung von Step 2 (iGRC).",
+                    en: "No risk table lookup. Extraction of technical parameter values required for Step 2 (iGRC)."
+                },
+                robustnessInfo: {
+                    de: "Vollständigkeit der ConOps-Dokumentation. Muss im OM Part C präzise beschrieben sein.",
+                    en: "Completeness of ConOps documentation. Must be described with high detail in OM Part C."
+                },
+                omTarget: "OM Part C (Section 1)",
+            },
+            {
+                step: 2,
+                title: { de: "Initial Ground Risk (iGRC)", en: "Initial Ground Risk (iGRC)" },
+                subtitle: { de: "Am Boden überflogenes Risiko", en: "Intrinsic Ground Risk Class" },
+                annexRef: "Main Doc Table 1",
+                inputs: {
+                    de: ["Betriebsart (VLOS / BVLOS)", "Besiedelungsdichte (Controlled Area, Sparsely Populated, Populated)", "UAS Dimension / Speed"],
+                    en: ["Operational Mode (VLOS / BVLOS)", "Ground Population Density (Controlled, Sparsely Populated, Populated)", "UAS Size / Speed"]
+                },
+                v20: {
+                    de: "iGRC Werte reichen von 1 bis 8. BVLOS über besiedeltem Gebiet erfordert zwingend GRC 8.",
+                    en: "iGRC values range from 1 to 8. BVLOS over populated areas automatically results in iGRC 8."
+                },
+                v25: {
+                    de: "iGRC Tabelle wurde überarbeitet. Feine Abstufung für kontrollierte Am-Boden-Bereiche und modifizierte Dichteschwellen.",
+                    en: "iGRC table revised with refined granularity for controlled ground areas and updated density thresholds."
+                },
+                tableInfo: {
+                    de: "Tabellenabfrage: SORA Table 1 (iGRC Matrix). Der Schnittpunkt aus Populated Area + Dimension ergibt den iGRC Wert (1 bis 8).",
+                    en: "Table Readout: SORA Table 1 (iGRC Matrix). The intersection of Population Area + Size gives iGRC value (1 to 8)."
+                },
+                robustnessInfo: {
+                    de: "Basiswert (noch keine Mitigations angewendet).",
+                    en: "Baseline assessment value (prior to applying ground mitigations)."
+                },
+                omTarget: "OM Part C (SORA Section)",
+            },
+            {
+                step: 3,
+                title: { de: "Final GRC (Mitigations)", en: "Final GRC (Mitigations)" },
+                subtitle: { de: "Minderung des Bodenrisikos", en: "Ground Risk Mitigations" },
+                annexRef: "JARUS Annex B",
+                inputs: {
+                    de: ["M1: Pufferzone am Boden / Tether", "M2: Aufprallreduzierung (Fallschirm)", "M3: Emergency Response Plan (ERP)"],
+                    en: ["M1: Ground Buffer / Tethered Flight", "M2: Impact Reduction (Parachute System)", "M3: Emergency Response Plan (ERP)"]
+                },
+                v20: {
+                    de: "M2 erlaubt bis zu -2 GRC Reduktion mit Fallschirm. ERP (M3) gewährt -1 GRC Reduktion.",
+                    en: "M2 allows up to -2 GRC reduction with a certified parachute. ERP (M3) grants -1 GRC reduction."
+                },
+                v25: {
+                    de: "M2 verlangt in 2.5 strikten Nachweis nach ASTM F3322 (oder gleichwertig). M1 unterscheidet schärfer zwischen Puffer und Areal.",
+                    en: "M2 requires compliance with ASTM F3322 parachute standards. M1 clearly separates operational buffers."
+                },
+                tableInfo: {
+                    de: "Tabellensubtraktion: Final GRC = iGRC - (M1 + M2 + M3). Tabellenwerte aus SORA Table 2.",
+                    en: "Table Subtraction: Final GRC = iGRC - (M1 + M2 + M3) using SORA Table 2 correction factors."
+                },
+                robustnessInfo: {
+                    de: "Jedes M1-M3 braucht nachgewiesene Robustheit = Integrität + Assurance (Low, Medium, High).",
+                    en: "Every M1-M3 mitigation requires proven Robustness = Integrity + Assurance (Low, Medium, High)."
+                },
+                omTarget: "OM Part C & ERP Document",
+            },
+            {
+                step: 4,
+                title: { de: "Initial Air Risk (iARC)", en: "Initial Air Risk (iARC)" },
+                subtitle: { de: "Risiko der Luftraumbegegnung", en: "Initial Air Risk Class" },
+                annexRef: "JARUS Annex C",
+                inputs: {
+                    de: ["Flughöhe (AHO / AMSL)", "Luftraumklasse (A-G gemäß SERA)", "Flughafen-Kontrollzonen (CTR)", "Flugdichte (Bemannter Verkehr)"],
+                    en: ["Flight Altitude (AGL / AMSL)", "Airspace Class (A-G per SERA rules)", "Controlled Airspace (CTR / TMZ)", "Manned Traffic Density"]
+                },
+                v20: {
+                    de: "Klassifizierung in iARC-a (sehr niedrig), iARC-b, iARC-c bis iARC-d (kontrollierter Luftraum / CTR).",
+                    en: "Classified into iARC-a (ultra low), iARC-b, iARC-c, up to iARC-d (controlled airspace / CTR)."
+                },
+                v25: {
+                    de: "Verfeinerte Integration von U-Space Lufträumen und geänderten Höhengrenzen (120m AGL Schwellenwert).",
+                    en: "Refined integration of U-Space airspace rules and strict 120m AGL operational altitude thresholds."
+                },
+                tableInfo: {
+                    de: "Tabellenabfrage: SORA Air Risk Decision Tree (iARC Flowchart). Output: ARC-a, ARC-b, ARC-c oder ARC-d.",
+                    en: "Table Readout: SORA Air Risk Decision Tree flowchart. Output: ARC-a, ARC-b, ARC-c, or ARC-d."
+                },
+                robustnessInfo: {
+                    de: "Luftraumbeschreibung im ConOps muss wissenschaftlich / betrieblich belegbar sein.",
+                    en: "Airspace environment assessment in ConOps must be backed by official aeronautical data."
+                },
+                omTarget: "OM Part C (Airspace Protocols)",
+            },
+            {
+                step: 5,
+                title: { de: "Strategic Air Mitigations", en: "Strategic Air Mitigations" },
+                subtitle: { de: "Strategische Luftraum-Reduktion", en: "Strategic Air Risk Mitigations" },
+                annexRef: "JARUS Annex C",
+                inputs: {
+                    de: ["Operationelle Einschränkungen (Flugzeiten nachts/morgens)", "Geofencing / Geografische Restriktionen", "Shielded Operations (Schutz durch Strukturen)"],
+                    en: ["Operational Restrictions (Night/Off-peak flights)", "Geofencing / Geographical Spatial Boundaries", "Shielded Operations (Protection by obstacles)"]
+                },
+                v20: {
+                    de: "Erlaubt das Herabstufen von ARC-d auf ARC-c oder ARC-c auf ARC-b durch strategische Nachweise.",
+                    en: "Allows downgrading ARC-d to ARC-c or ARC-c to ARC-b through strategic airspace evidence."
+                },
+                v25: {
+                    de: "SORA 2.5 präzisiert die Regeln für Shielded Operations (15m Abstand zu Hindernissen).",
+                    en: "SORA 2.5 clarifies rules for Shielded Operations (15m maximum distance to physical obstacles)."
+                },
+                tableInfo: {
+                    de: "Auslesen von Ausnahmekriterien. Ergebnis ist die 'Residual ARC' (Finale ARC).",
+                    en: "Evaluation of strategic mitigation criteria. Output is the 'Residual ARC' (Final ARC)."
+                },
+                robustnessInfo: {
+                    de: "Integrität des Geofencing-Systems + Assurance der Flugplanung.",
+                    en: "Integrity of geofencing technology + Assurance of operational flight planning."
+                },
+                omTarget: "OM Part C (Flight Rules)",
+            },
+            {
+                step: 6,
+                title: { de: "Tactical Mitigations (TMPR)", en: "Tactical Mitigations (TMPR)" },
+                subtitle: { de: "Taktische Ausweichmechanismen", en: "Tactical Mitigation Performance" },
+                annexRef: "JARUS Annex D",
+                inputs: {
+                    de: ["Detect and Avoid (DAA) Sensoren", "Visual Observers (VO)", "Transponder / ADS-B Out / FLARM", "Direct Remote ID"],
+                    en: ["Detect and Avoid (DAA) Sensor suite", "Visual Observers (VO)", "Aviation Transponders / ADS-B Out / FLARM", "Direct Remote ID"]
+                },
+                v20: {
+                    de: "Definiert TMPR Anforderungen (Low, Medium, High) basierend auf der Residual ARC.",
+                    en: "Defines TMPR performance levels (Low, Medium, High) based on Residual ARC."
+                },
+                v25: {
+                    de: "Stärkere Anbindung an ACAS sUAS Standards und eID/U-Space Interoperabilität.",
+                    en: "Enhanced alignment with ACAS sUAS standards and eID/U-Space direct interoperability."
+                },
+                tableInfo: {
+                    de: "Tabellenabfrage: TMPR Requirement Table. Verbindet Residual ARC mit erforderlichem TMPR Level.",
+                    en: "Table Readout: TMPR Requirement Table connecting Residual ARC to required TMPR performance."
+                },
+                robustnessInfo: {
+                    de: "Latenzzeiten des DAA-Systems, Sensorreichweiten und Schulung der Visual Observer (OM Part D).",
+                    en: "DAA system detection latency, sensor detection range, and Visual Observer training (OM Part D)."
+                },
+                omTarget: "OM Part B (Sensors) & Part D (Training)",
+            },
+            {
+                step: 7,
+                title: { de: "SAIL Bestimmung", en: "SAIL Determination" },
+                subtitle: { de: "Specific Assurance & Integrity Level", en: "Specific Assurance & Integrity Level" },
+                annexRef: "Main Doc Table 3",
+                inputs: {
+                    de: ["Final GRC (aus Step 3)", "Residual ARC (aus Step 5)"],
+                    en: ["Final GRC (from Step 3)", "Residual ARC (from Step 5)"]
+                },
+                v20: {
+                    de: "SAIL reicht von I (niedrigstes Risiko) bis VI (höchstes Risiko in der Speziellen Kategorie).",
+                    en: "SAIL ranges from I (lowest risk level) to VI (highest risk level in Specific Category)."
+                },
+                v25: {
+                    de: "Aufgrund geänderter iGRC Werte ergeben sich verschobene SAIL-Zuordnungen in der Matrix.",
+                    en: "Shifted SAIL mappings in the matrix due to modified underlying iGRC parameters."
+                },
+                tableInfo: {
+                    de: "Tabellenabfrage: SORA Table 3 (SAIL Matrix). Schnittpunkt aus Final GRC und Residual ARC = SAIL (I bis VI).",
+                    en: "Table Readout: SORA Table 3 (SAIL Matrix). Intersection of Final GRC and Residual ARC = SAIL (I to VI)."
+                },
+                robustnessInfo: {
+                    de: "SAIL bestimmt das geforderte Robustheits-Level für alle 24 OSOs in Step 8.",
+                    en: "The derived SAIL level dictates required Robustness levels for all 24 OSOs in Step 8."
+                },
+                omTarget: "OM Part C (Risk Assessment Summary)",
+            },
+            {
+                step: 8,
+                title: { de: "Identifikation der OSOs", en: "Identification of OSOs" },
+                subtitle: { de: "Operational Safety Objectives", en: "Operational Safety Objectives" },
+                annexRef: "JARUS Annex E",
+                inputs: {
+                    de: ["Ermittelter SAIL Level (I bis VI)", "Katalog von 24 OSOs (Technik, Betreiber, Crew, Instandhaltung)"],
+                    en: ["Derived SAIL Level (I to VI)", "Catalog of 24 OSOs (Technical, Operator, Crew, Maintenance)"]
+                },
+                v20: {
+                    de: "Jedem OSO wird für den jeweiligen SAIL-Wert eine Anforderung zugeordnet: O (Optional), L (Low), M (Medium), H (High).",
+                    en: "Assigns compliance levels to each OSO: O (Optional), L (Low), M (Medium), H (High)."
+                },
+                v25: {
+                    de: "Für SAIL IV und höher (>25kg BVLOS) verlangt SORA 2.5 für technische OSOs zwingend ein EASA Design Verification Report (DVR).",
+                    en: "For SAIL IV and above (>25kg BVLOS), SORA 2.5 mandates an EASA Design Verification Report (DVR) for technical OSOs."
+                },
+                tableInfo: {
+                    de: "Tabellenauswertung: SORA Annex E Table. 24 Zeilen (OSOs) x 6 Spalten (SAIL I-VI).",
+                    en: "Table Readout: SORA Annex E Table. 24 rows (OSOs) x 6 columns (SAIL I-VI)."
+                },
+                robustnessInfo: {
+                    de: "Jedes OSO erfordert den Nachweis: Robustheit = Integrität (Design) + Assurance (Tests/Audits).",
+                    en: "Every OSO requires proof: Robustness = Integrity (System Design) + Assurance (Testing/Audits)."
+                },
+                omTarget: "OM Part A, B, C & D (Full Alignment)",
+            },
+            {
+                step: 9,
+                title: { de: "Adjacent Area & Containment", en: "Adjacent Area & Containment" },
+                subtitle: { de: "Angrenzende Gebiete & Containment", en: "Adjacent Area & Enhanced Containment" },
+                annexRef: "JARUS Annex F",
+                inputs: {
+                    de: ["Maximales Ausfallrisiko des UAS", "Angrenzender Luftraum / Am-Boden-Population", "Flight Termination System (FTS)"],
+                    en: ["Maximum UAS failure probability", "Adjacent Airspace / Ground Population Density", "Flight Termination System (FTS)"]
+                },
+                v20: {
+                    de: "Unterscheidung zwischen Standard Containment und Enhanced Containment.",
+                    en: "Separation between Standard Containment and Enhanced Containment requirements."
+                },
+                v25: {
+                    de: "Enhanced Containment erfordert den Nachweis, dass kein Einzelausfall zum Verlassen des Volumen führt ($10^{-4}/h$ Ausfallrate).",
+                    en: "Enhanced Containment requires proof that no single failure leads to exiting the volume ($10^{-4}/h$ failure rate)."
+                },
+                tableInfo: {
+                    de: "Sicherheitsnachweis: Falls angrenzendes Gebiet hochriskant ist (z. B. Menschenmenge oder CTR) -> Enhanced Containment Pflicht.",
+                    en: "Safety Evaluation: If adjacent area is high-risk (e.g. assemblies of people or CTR) -> Enhanced Containment is mandatory."
+                },
+                robustnessInfo: {
+                    de: "Enhanced Containment erfordert IMMER High Robustness (Integrität + Assurance).",
+                    en: "Enhanced Containment ALWAYS mandates High Robustness (Integrity + Assurance)."
+                },
+                omTarget: "OM Part B (FTS System) & Part C (Buffer)",
+            },
+            {
+                step: 10,
+                title: { de: "Comprehensive Safety Portfolio", en: "Comprehensive Safety Portfolio" },
+                subtitle: { de: "Gesamtes Sicherheitsportfolio", en: "Comprehensive Safety Portfolio" },
+                annexRef: "JARUS SORA Main",
+                inputs: {
+                    de: ["Vollständiges Operations Manual (OM Part A-D)", "SORA Nachweisdokumente", "EASA DVR Zertifikat", "LUC Manual"],
+                    en: ["Complete Operations Manual (OM Part A-D)", "SORA Compliance Evidence Dossier", "EASA DVR Certificate", "LUC Manual"]
+                },
+                v20: {
+                    de: "Einreichung des SORA Dossiers beim LBA zur behördlichen Genehmigung.",
+                    en: "Submission of SORA compliance dossier to the authority (LBA) for authorization."
+                },
+                v25: {
+                    de: "Für LUC-Inhaber: Erstellung der internen Genehmigungsakte zur Selbstaustellung einer Betriebsgenehmigung.",
+                    en: "For LUC holders: Creation of internal compliance sign-off files enabling self-authorization."
+                },
+                tableInfo: {
+                    de: "Keine Tabelle. Zusammenstellung der vollständigen Dokumentenmappe für das LUC / LBA Audit.",
+                    en: "No table lookup. Final consolidation of all evidence for LUC / LBA auditing."
+                },
+                robustnessInfo: {
+                    de: "Gesamte Validierung des Betreibers (Safety Management & Quality Audits).",
+                    en: "Complete operator validation through Safety Management System and Quality Audits."
+                },
+                omTarget: "LUC Approval Dossier / OM Part A",
+            }
+        ];
+
+        // --- NAVIGATION & EVENT HANDLERS ---
+        function switchToTab(tab) {
+            const hierarchyView = document.getElementById('hierarchyView');
+            const soraView = document.getElementById('soraView');
+            const listView = document.getElementById('listView');
+            const tabHierarchyBtn = document.getElementById('tabHierarchyBtn');
+            const tabSoraBtn = document.getElementById('tabSoraBtn');
+
+            if (tab === 'sora') {
+                hierarchyView.classList.add('hidden');
+                listView.classList.add('hidden');
+                soraView.classList.remove('hidden');
+
+                tabSoraBtn.className = "px-4 py-2 rounded-lg text-xs font-bold bg-amber-500 text-slate-950 shadow-md flex items-center gap-2 transition-all";
+                tabHierarchyBtn.className = "px-4 py-2 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition-all";
+                
+                renderSoraStepsGrid();
+                selectSoraStep(currentSoraStep);
+            } else {
+                soraView.classList.add('hidden');
+                
+                if (document.getElementById('viewListBtn').classList.contains('bg-blue-600')) {
+                    listView.classList.remove('hidden');
+                    hierarchyView.classList.add('hidden');
+                } else {
+                    hierarchyView.classList.remove('hidden');
+                    listView.classList.add('hidden');
+                }
+
+                tabHierarchyBtn.className = "px-4 py-2 rounded-lg text-xs font-bold bg-blue-600 text-white shadow-md flex items-center gap-2 transition-all";
+                tabSoraBtn.className = "px-4 py-2 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition-all";
+            }
+        }
+
+        function scrollToLevel(levelId) {
+            switchToTab('hierarchy');
+            const target = document.getElementById(`level-${levelId}`);
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        function openSoraVisualizer() {
+            switchToTab('sora');
+        }
+
+        function closeModal() {
+            const overlay = document.getElementById('modalOverlay');
+            const container = document.getElementById('modalContainer');
+            if (container) container.classList.add('translate-x-full');
+            if (overlay) overlay.classList.add('opacity-0', 'pointer-events-none');
+        }
+
+        function resetSearch() {
+            const input = document.getElementById('searchInput');
+            if (input) input.value = '';
+            document.getElementById('activeFilterBadge').classList.add('hidden');
+            
+            document.querySelectorAll('.doc-card').forEach(card => {
+                card.classList.remove('hidden');
+            });
+        }
 
         // Language Switcher Function
         function toggleLanguage() {
@@ -1172,13 +1726,16 @@
             const overlay = document.getElementById('modalOverlay');
             const container = document.getElementById('modalContainer');
             
-            overlay.classList.remove('opacity-0', 'pointer-events-none');
-            container.classList.remove('translate-x-full');
+            if (overlay && container) {
+                overlay.classList.remove('opacity-0', 'pointer-events-none');
+                container.classList.remove('translate-x-full');
+            }
         }
 
         // Populate Matrix View
         function populateMatrix() {
             const tbody = document.getElementById('matrixTableBody');
+            if (!tbody) return;
             tbody.innerHTML = '';
 
             Object.values(docDatabase).forEach(doc => {
@@ -1208,8 +1765,57 @@
             });
         }
 
-        // Initialize default view
+        // Initialize event listeners and default state
         window.onload = function() {
+            // View switcher buttons (Hierarchy vs Matrix)
+            const viewHierarchyBtn = document.getElementById('viewHierarchyBtn');
+            const viewListBtn = document.getElementById('viewListBtn');
+            const hierarchyView = document.getElementById('hierarchyView');
+            const listView = document.getElementById('listView');
+
+            if (viewHierarchyBtn && viewListBtn) {
+                viewHierarchyBtn.onclick = () => {
+                    switchToTab('hierarchy');
+                    viewHierarchyBtn.className = "px-3 py-1 text-xs font-medium rounded-md bg-blue-600 text-white shadow-sm transition-all";
+                    viewListBtn.className = "px-3 py-1 text-xs font-medium text-slate-400 hover:text-white rounded-md transition-all";
+                    hierarchyView.classList.remove('hidden');
+                    listView.classList.add('hidden');
+                };
+
+                viewListBtn.onclick = () => {
+                    switchToTab('hierarchy');
+                    viewListBtn.className = "px-3 py-1 text-xs font-medium rounded-md bg-blue-600 text-white shadow-sm transition-all";
+                    viewHierarchyBtn.className = "px-3 py-1 text-xs font-medium text-slate-400 hover:text-white rounded-md transition-all";
+                    listView.classList.remove('hidden');
+                    hierarchyView.classList.add('hidden');
+                    populateMatrix();
+                };
+            }
+
+            // Search Filter
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    const query = e.target.value.toLowerCase().trim();
+                    const activeFilterBadge = document.getElementById('activeFilterBadge');
+
+                    if (query.length > 0) {
+                        activeFilterBadge.classList.remove('hidden');
+                    } else {
+                        activeFilterBadge.classList.add('hidden');
+                    }
+
+                    document.querySelectorAll('.doc-card').forEach(card => {
+                        const cardText = card.innerText.toLowerCase();
+                        if (cardText.includes(query)) {
+                            card.classList.remove('hidden');
+                        } else {
+                            card.classList.add('hidden');
+                        }
+                    });
+                });
+            }
+
             renderSoraStepsGrid();
             selectSoraStep(1);
         };
