@@ -101,11 +101,11 @@
     <div class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
 
         <!-- Sidebar Meta & Settings Panel -->
-        <aside class="w-full md:w-80 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 z-10 overflow-y-auto max-h-48 md:max-h-full">
-            <div class="p-4 space-y-5">
+        <aside class="w-full md:w-80 h-full bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 z-10 overflow-y-auto">
+            <div class="p-4 space-y-4">
                 
                 <!-- File Meta Details -->
-                <div class="bg-slate-950/60 rounded-xl p-3.5 border border-slate-800 space-y-3">
+                <div class="bg-slate-950/60 rounded-xl p-3 border border-slate-800 space-y-2.5">
                     <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                         <i data-lucide="file-text" class="w-4 h-4 text-indigo-400"></i> Extrahierter Dateiname
                     </h3>
@@ -114,25 +114,25 @@
                     </div>
 
                     <div class="grid grid-cols-2 gap-2 text-xs">
-                        <div class="bg-slate-900/80 p-2 rounded border border-slate-800/80">
+                        <div class="bg-slate-900/80 p-1.5 rounded border border-slate-800/80">
                             <span class="text-slate-500 block text-[10px]">Ort / Location</span>
                             <input type="text" id="meta-location" value="-" class="w-full bg-transparent font-medium text-slate-200 outline-none focus:text-indigo-400">
                         </div>
-                        <div class="bg-slate-900/80 p-2 rounded border border-slate-800/80">
+                        <div class="bg-slate-900/80 p-1.5 rounded border border-slate-800/80">
                             <span class="text-slate-500 block text-[10px]">Speed (mds / m/s)</span>
                             <input type="number" id="meta-speed" value="0" class="w-full bg-transparent font-medium text-slate-200 outline-none focus:text-indigo-400">
                         </div>
-                        <div class="bg-slate-900/80 p-2 rounded border border-slate-800/80">
+                        <div class="bg-slate-900/80 p-1.5 rounded border border-slate-800/80">
                             <span class="text-slate-500 block text-[10px]">Höhe / Altitude (m)</span>
                             <input type="number" id="meta-altitude" value="0" class="w-full bg-transparent font-medium text-slate-200 outline-none focus:text-indigo-400">
                         </div>
-                        <div class="bg-slate-900/80 p-2 rounded border border-slate-800/80">
+                        <div class="bg-slate-900/80 p-1.5 rounded border border-slate-800/80">
                             <span class="text-slate-500 block text-[10px]">Postfix</span>
                             <input type="text" id="meta-postfix" value="" class="w-full bg-transparent font-medium text-slate-200 outline-none focus:text-indigo-400" placeholder="optional">
                         </div>
                     </div>
 
-                    <div class="pt-1">
+                    <div class="pt-0.5">
                         <span class="text-[10px] text-slate-500">Generierter KML Name:</span>
                         <div id="meta-generated-name" class="text-xs font-mono text-indigo-300 truncate">flightarea_unknown_0mds_0m</div>
                     </div>
@@ -141,27 +141,27 @@
                 <!-- Calculated Distances Panel -->
                 <div class="bg-indigo-950/40 border border-indigo-800/50 rounded-xl p-3 space-y-2">
                     <h3 class="text-xs font-semibold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
-                        <i data-lucide="ruler" class="w-4 h-4 text-indigo-400"></i> Berechnete Mindest-Linienabstände
+                        <i data-lucide="ruler" class="w-4 h-4 text-indigo-400"></i> Minimalabstände (Live)
                     </h3>
                     <div class="text-xs space-y-1.5">
                         <div class="flex justify-between items-center bg-slate-900/90 p-2 rounded border border-slate-800">
                             <span class="text-slate-400 text-[11px]">FG &rarr; CV Outer:</span>
-                            <span id="dist-fg-cv" class="font-mono text-indigo-300 font-semibold">- m</span>
+                            <span id="dist-fg-cv" class="font-mono text-emerald-400 font-semibold">- m</span>
                         </div>
                         <div class="flex justify-between items-center bg-slate-900/90 p-2 rounded border border-slate-800">
                             <span class="text-slate-400 text-[11px]">CV Outer &rarr; GRB Outer:</span>
-                            <span id="dist-cv-grb" class="font-mono text-indigo-300 font-semibold">- m</span>
+                            <span id="dist-cv-grb" class="font-mono text-orange-400 font-semibold">- m</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Layer Controls for Map 2 -->
-                <div class="space-y-3">
+                <div class="space-y-2.5">
                     <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                        <i data-lucide="layers" class="w-4 h-4 text-indigo-400"></i> Ebenen & Original-Overlay
+                        <i data-lucide="layers" class="w-4 h-4 text-indigo-400"></i> Ebenen & Werkzeuge
                     </h3>
 
-                    <div class="space-y-2 text-xs">
+                    <div class="space-y-1.5 text-xs">
                         <!-- Flight Geography -->
                         <div class="flex items-center justify-between p-2 rounded-lg bg-slate-800/40 border border-slate-800">
                             <div class="flex items-center gap-2">
@@ -190,11 +190,18 @@
                         </div>
                     </div>
 
-                    <!-- Toggle Original Overlay -->
-                    <div class="pt-2">
-                        <label class="flex items-center justify-between p-2.5 rounded-xl bg-indigo-950/40 border border-indigo-900/60 cursor-pointer hover:bg-indigo-900/30 transition">
+                    <!-- Toggles -->
+                    <div class="pt-1 space-y-1.5">
+                        <label class="flex items-center justify-between p-2 rounded-xl bg-indigo-950/40 border border-indigo-900/60 cursor-pointer hover:bg-indigo-900/30 transition">
                             <span class="text-xs font-medium text-indigo-200 flex items-center gap-2">
-                                <i data-lucide="eye" class="w-4 h-4 text-blue-400"></i> Original-Polygone auf Karte 2 (Blau)
+                                <i data-lucide="ruler" class="w-4 h-4 text-slate-200"></i> Live-Maßbänder (Schwarz)
+                            </span>
+                            <input type="checkbox" id="toggle-tape-measure" checked class="rounded accent-slate-400 w-4 h-4">
+                        </label>
+
+                        <label class="flex items-center justify-between p-2 rounded-xl bg-indigo-950/40 border border-indigo-900/60 cursor-pointer hover:bg-indigo-900/30 transition">
+                            <span class="text-xs font-medium text-indigo-200 flex items-center gap-2">
+                                <i data-lucide="eye" class="w-4 h-4 text-blue-400"></i> Original-Polygone (Blau)
                             </span>
                             <input type="checkbox" id="toggle-original-bg" checked class="rounded accent-indigo-500 w-4 h-4">
                         </label>
@@ -202,11 +209,11 @@
                 </div>
 
                 <!-- History & Reset Controls -->
-                <div class="space-y-3 pt-2">
+                <div class="space-y-2 pt-1">
                     <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                        <i data-lucide="history" class="w-4 h-4 text-indigo-400"></i> Bearbeitungsverlauf
+                        <i data-lucide="history" class="w-4 h-4 text-indigo-400"></i> Verlauf
                     </h3>
-                    
+
                     <div class="grid grid-cols-3 gap-2">
                         <button id="undo-btn" disabled class="disabled:opacity-40 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs py-2 rounded-lg border border-slate-700 flex items-center justify-center gap-1">
                             <i data-lucide="undo" class="w-3.5 h-3.5"></i> Undo
@@ -221,41 +228,39 @@
                 </div>
 
                 <!-- Guidance Info Box -->
-                <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400 space-y-1.5">
+                <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400 space-y-1">
                     <div class="font-semibold text-slate-300 flex items-center gap-1">
-                        <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400"></i> Reduktions-Garantie
+                        <i data-lucide="mouse-pointer-click" class="w-3.5 h-3.5 text-indigo-400"></i> Automatische Synch-Kopplung
                     </div>
-                    <p>• <b>Kaskadierende Reduktion</b>: FG wird zuerst verkleinert, CV/GRB danach angepasst.</p>
-                    <p>• <b>Linienabstand</b>: Der Mindestabstand zwischen Liniensegmenten wird streng beibehalten.</p>
-                    <p>• <b>Synch-Dragging</b>: Verschieben innerer Punkte schiebt äußere Ringe automatisch mit.</p>
+                    <p>• Beim Verschieben eines Punkts synchronisieren sich FG Outer &amp; CV Inner sowie CV Outer &amp; GRB Inner sofort auch für den KML-Export.</p>
                 </div>
 
             </div>
         </aside>
 
         <!-- Maps Dual View Container -->
-        <main class="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-1 p-2 bg-slate-950 relative overflow-hidden">
+        <main class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2 p-2 bg-slate-950 h-full overflow-hidden">
 
             <!-- MAP 1: Original High-Res Map -->
-            <div class="relative flex flex-col rounded-xl overflow-hidden border border-slate-800 bg-slate-900">
+            <div class="relative flex flex-col rounded-xl overflow-hidden border border-slate-800 bg-slate-900 h-full">
                 <div class="absolute top-3 left-3 z-[1000] bg-slate-900/90 backdrop-blur border border-slate-700/80 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-200 flex items-center gap-2 shadow-lg">
                     <span class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span>
-                    Original KML Daten (Exakt)
+                    Original KML Daten
                     <span id="orig-points-badge" class="text-[10px] text-slate-400 font-mono ml-2 border-l border-slate-700 pl-2">0 Punkte total</span>
                 </div>
-                <div id="map-original" class="w-full h-full min-h-[300px]"></div>
+                <div id="map-original" class="w-full h-full"></div>
             </div>
 
             <!-- MAP 2: Reduced & Interactive Drag & Drop Map -->
-            <div class="relative flex flex-col rounded-xl overflow-hidden border border-indigo-900/50 bg-slate-900">
+            <div class="relative flex flex-col rounded-xl overflow-hidden border border-indigo-900/50 bg-slate-900 h-full">
                 <div class="absolute top-3 left-3 z-[1000] bg-slate-900/90 backdrop-blur border border-indigo-500/50 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-200 flex items-center gap-2 shadow-lg">
                     <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
-                    Reduzierte & Interaktive Karte (max. 20 Punkte/Gürtel)
+                    Reduzierte &amp; Interaktive Karte
                     <span id="reduced-points-badge" class="text-[10px] text-slate-400 font-mono ml-2 border-l border-slate-700 pl-2">0 Punkte total</span>
                 </div>
                 
                 <!-- Map 2 Canvas -->
-                <div id="map-reduced" class="w-full h-full min-h-[300px]"></div>
+                <div id="map-reduced" class="w-full h-full"></div>
             </div>
 
         </main>
@@ -293,16 +298,17 @@
             },
             history: [],
             historyIndex: -1,
-            showOriginalBg: true
+            showOriginalBg: true,
+            showTapeMeasure: true
         };
 
         // Styling Config
         const STYLES = {
-            fgOuter: { color: '#22c55e', weight: 3, fillOpacity: 0.25, label: 'Flight Geography Outer' },
-            cvOuter: { color: '#f97316', weight: 3, fillOpacity: 0.2, label: 'Contingency Volume Outer' },
-            cvInner: { color: '#f97316', weight: 1.5, fillOpacity: 0.1, dashArray: '4,4', label: 'Contingency Volume Inner' },
-            grbOuter: { color: '#ef4444', weight: 3, fillOpacity: 0.15, label: 'Ground Risk Buffer Outer' },
-            grbInner: { color: '#ef4444', weight: 1.5, fillOpacity: 0.05, dashArray: '4,4', label: 'Ground Risk Buffer Inner' },
+            fgOuter: { color: '#22c55e', weight: 3, fillOpacity: 0.25, label: 'Flight Geography' },
+            cvOuter: { color: '#f97316', weight: 3, fillOpacity: 0.2, label: 'Contingency Volume (Outer)' },
+            cvInner: { color: '#f97316', weight: 1.5, fillOpacity: 0.1, dashArray: '4,4', label: 'Contingency Volume (Inner)' },
+            grbOuter: { color: '#ef4444', weight: 3, fillOpacity: 0.15, label: 'Ground Risk Buffer (Outer)' },
+            grbInner: { color: '#ef4444', weight: 1.5, fillOpacity: 0.05, dashArray: '4,4', label: 'Ground Risk Buffer (Inner)' },
             bgOverlay: { color: '#3b82f6', weight: 1.5, fillOpacity: 0.05, dashArray: '2,4' }
         };
 
@@ -311,6 +317,7 @@
         let layerGroupOrig = null;
         let layerGroupReduced = null;
         let layerGroupBgOverlay = null;
+        let layerGroupTapeMeasure = null;
 
         window.onload = function() {
             lucide.createIcons();
@@ -329,20 +336,23 @@
                 attribution: '&copy; OpenStreetMap'
             }).addTo(mapRed);
 
-            // Sync Maps Zoom/Pan
-            mapOrig.sync && mapOrig.sync(mapRed);
-            mapRed.sync && mapRed.sync(mapOrig);
-
             layerGroupOrig = L.layerGroup().addTo(mapOrig);
             layerGroupBgOverlay = L.layerGroup().addTo(mapRed);
             layerGroupReduced = L.layerGroup().addTo(mapRed);
+            layerGroupTapeMeasure = L.layerGroup().addTo(mapRed);
 
             // Event Listeners
             document.getElementById('kml-input').addEventListener('change', handleFileUpload);
             document.getElementById('load-sample-btn').addEventListener('click', loadSampleData);
             document.getElementById('export-kml-btn').addEventListener('click', exportKMLFile);
+            
             document.getElementById('toggle-original-bg').addEventListener('change', (e) => {
                 state.showOriginalBg = e.target.checked;
+                renderMapReduced();
+            });
+
+            document.getElementById('toggle-tape-measure').addEventListener('change', (e) => {
+                state.showTapeMeasure = e.target.checked;
                 renderMapReduced();
             });
 
@@ -367,43 +377,45 @@
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
 
-        // Point-to-Segment (Line) Distance Calculation in Meters
-        function distanceToSegmentMeters(p, v, w) {
+        // Point-to-Segment (Line) Shortest Connection Projection & Distance
+        function shortestProjectionToSegment(p, v, w) {
             const l2 = (w.lat - v.lat) * (w.lat - v.lat) + (w.lng - v.lng) * (w.lng - v.lng);
-            if (l2 === 0) return getDistanceMeters(p, v);
+            if (l2 === 0) return { point: v, dist: getDistanceMeters(p, v) };
             let t = ((p.lat - v.lat) * (w.lat - v.lat) + (p.lng - v.lng) * (w.lng - v.lng)) / l2;
             t = Math.max(0, Math.min(1, t));
-            const projection = {
+            const proj = {
                 lat: v.lat + t * (w.lat - v.lat),
                 lng: v.lng + t * (w.lng - v.lng)
             };
-            return getDistanceMeters(p, projection);
+            return { point: proj, dist: getDistanceMeters(p, proj) };
         }
 
-        // Distance between Point and Polygon Boundary Lines
-        function distanceToPolygonLinesMeters(point, polygon) {
-            if (!polygon || polygon.length < 2) return Infinity;
-            let minDistance = Infinity;
-            for (let i = 0; i < polygon.length - 1; i++) {
-                const d = distanceToSegmentMeters(point, polygon[i], polygon[i + 1]);
-                if (d < minDistance) minDistance = d;
-            }
-            return minDistance;
-        }
+        // Find absolute shortest connection pair between two polygons
+        function findShortestPolyConnection(polyA, polyB) {
+            if (!polyA || !polyB || polyA.length < 2 || polyB.length < 2) return null;
+            let minResult = { p1: null, p2: null, dist: Infinity };
 
-        // Compute minimum gap between lines of two polygons
-        function computeMinPolygonGap(polyA, polyB) {
-            if (!polyA || !polyB || polyA.length < 2 || polyB.length < 2) return 0;
-            let minGap = Infinity;
+            // Check Vertices of A to Segments of B
             for (let ptA of polyA) {
-                const d = distanceToPolygonLinesMeters(ptA, polyB);
-                if (d < minGap) minGap = d;
+                for (let i = 0; i < polyB.length - 1; i++) {
+                    const res = shortestProjectionToSegment(ptA, polyB[i], polyB[i + 1]);
+                    if (res.dist < minResult.dist) {
+                        minResult = { p1: ptA, p2: res.point, dist: res.dist };
+                    }
+                }
             }
+
+            // Check Vertices of B to Segments of A
             for (let ptB of polyB) {
-                const d = distanceToPolygonLinesMeters(ptB, polyA);
-                if (d < minGap) minGap = d;
+                for (let i = 0; i < polyA.length - 1; i++) {
+                    const res = shortestProjectionToSegment(ptB, polyA[i], polyA[i + 1]);
+                    if (res.dist < minResult.dist) {
+                        minResult = { p1: res.point, p2: ptB, dist: res.dist };
+                    }
+                }
             }
-            return minGap === Infinity ? 0 : minGap;
+
+            return minResult;
         }
 
         // Filename Metadata Extraction
@@ -496,20 +508,12 @@
             state.sections.grbOuter = getSectionCoords("Ground Risk Buffer", "outerBoundaryIs");
             state.sections.grbInner = getSectionCoords("Ground Risk Buffer", "innerBoundaryIs");
 
-            // Calculate Original Line Gaps
-            state.calculatedDistances.fgToCvMeters = Math.round(computeMinPolygonGap(state.sections.fgOuter, state.sections.cvOuter));
-            state.calculatedDistances.cvToGrbMeters = Math.round(computeMinPolygonGap(state.sections.cvOuter, state.sections.grbOuter));
+            // Point Reduction Logic
+            reduceAllSections();
 
-            document.getElementById('dist-fg-cv').innerText = `${state.calculatedDistances.fgToCvMeters} m`;
-            document.getElementById('dist-cv-grb').innerText = `${state.calculatedDistances.cvToGrbMeters} m`;
-
-            // Cascading Point Reduction Logic
-            reduceAllSectionsCascading();
-
-            // Render Map 1
+            // Render Maps
             renderMapOriginal();
 
-            // History Stack Reset & Render Map 2
             state.history = [];
             state.historyIndex = -1;
             pushHistoryState();
@@ -536,136 +540,80 @@
             return result;
         }
 
-        function reduceAllSectionsCascading() {
-            // Visvalingam simplification to max 20 points
-            const redFG = simplifyPolygonVisvalingam(state.sections.fgOuter, 20);
-            const redFG_Inward = contractPolygonInwards(redFG, 0.003);
+        // Visvalingam-Whyatt Simplification Algorithm (reduces to maxPoints)
+        function simplifyPolygonVisvalingam(points, maxPoints) {
+            if (!points || points.length <= maxPoints) return JSON.parse(JSON.stringify(points || []));
 
-            const redCV = simplifyPolygonVisvalingam(state.sections.cvOuter, 20);
-            const fgToCvDist = state.calculatedDistances.fgToCvMeters || 15;
-            const redCV_Outward = expandPolygonOutwardsToKeepLineGap(redFG_Inward, redCV, fgToCvDist);
+            let pts = JSON.parse(JSON.stringify(points));
+            const isClosed = (pts[0].lat === pts[pts.length - 1].lat && pts[0].lng === pts[pts.length - 1].lng);
+            if (isClosed) pts.pop();
 
-            const redGRB = simplifyPolygonVisvalingam(state.sections.grbOuter, 20);
-            const cvToGrbDist = state.calculatedDistances.cvToGrbMeters || 20;
-            const redGRB_Outward = expandPolygonOutwardsToKeepLineGap(redCV_Outward, redGRB, cvToGrbDist);
-
-            state.reducedSections = {
-                fgOuter: redFG_Inward,
-                cvOuter: redCV_Outward,
-                cvInner: JSON.parse(JSON.stringify(redFG_Inward)),
-                grbOuter: redGRB_Outward,
-                grbInner: JSON.parse(JSON.stringify(redCV_Outward))
-            };
-        }
-
-        function simplifyPolygonVisvalingam(points, targetCount) {
-            if (!points || points.length <= targetCount) return points.map(p => ({ ...p }));
-            let pts = points.map(p => ({ ...p }));
-            if (pts.length > 2 && pts[0].lat === pts[pts.length-1].lat && pts[0].lng === pts[pts.length-1].lng) {
-                pts.pop();
-            }
-
-            while (pts.length > Math.max(3, targetCount - 1)) {
+            while (pts.length > Math.max(3, maxPoints - 1)) {
                 let minArea = Infinity;
                 let minIndex = -1;
+
                 for (let i = 0; i < pts.length; i++) {
                     const prev = pts[(i - 1 + pts.length) % pts.length];
                     const curr = pts[i];
                     const next = pts[(i + 1) % pts.length];
-                    const area = Math.abs((prev.lng * (curr.lat - next.lat) + curr.lng * (next.lat - prev.lat) + next.lng * (prev.lat - curr.lat)) / 2.0);
+
+                    const area = Math.abs(
+                        (prev.lng * (curr.lat - next.lat) +
+                         curr.lng * (next.lat - prev.lat) +
+                         next.lng * (prev.lat - curr.lat)) / 2.0
+                    );
+
                     if (area < minArea) {
                         minArea = area;
                         minIndex = i;
                     }
                 }
+
                 if (minIndex !== -1) {
                     pts.splice(minIndex, 1);
-                } else break;
-            }
-            pts.push({ ...pts[0] });
-            return pts;
-        }
-
-        function contractPolygonInwards(pts, factor) {
-            if (pts.length < 3) return pts;
-            const centerLat = pts.reduce((s, p) => s + p.lat, 0) / pts.length;
-            const centerLng = pts.reduce((s, p) => s + p.lng, 0) / pts.length;
-            return pts.map(p => ({
-                lat: p.lat + (centerLat - p.lat) * factor,
-                lng: p.lng + (centerLng - p.lng) * factor,
-                alt: p.alt
-            }));
-        }
-
-        function expandPolygonOutwardsToKeepLineGap(innerPoly, outerPolySimplified, requiredGapMeters) {
-            if (!innerPoly || innerPoly.length < 2) return outerPolySimplified;
-            const centerLat = innerPoly.reduce((sum, p) => sum + p.lat, 0) / innerPoly.length;
-            const centerLng = innerPoly.reduce((sum, p) => sum + p.lng, 0) / innerPoly.length;
-
-            let result = outerPolySimplified.map(p => ({ ...p }));
-
-            for (let pass = 0; pass < 4; pass++) {
-                for (let i = 0; i < result.length; i++) {
-                    let currentPoint = result[i];
-                    let minGap = distanceToPolygonLinesMeters(currentPoint, innerPoly);
-
-                    if (minGap < requiredGapMeters + 2) {
-                        const diffMeters = (requiredGapMeters + 2 - minGap);
-                        const dLat = currentPoint.lat - centerLat;
-                        const dLng = currentPoint.lng - centerLng;
-                        const len = Math.sqrt(dLat * dLat + dLng * dLng) || 1;
-
-                        const latOffset = (diffMeters / 111000) * (dLat / len);
-                        const lngOffset = (diffMeters / (111000 * Math.cos(centerLat * Math.PI / 180))) * (dLng / len);
-
-                        result[i].lat += latOffset;
-                        result[i].lng += lngOffset;
-                    }
+                } else {
+                    break;
                 }
             }
 
-            return result;
+            if (isClosed || pts.length > 0) {
+                pts.push({ ...pts[0] });
+            }
+            return pts;
         }
 
-        function handleMarkerDrag(key, index, oldPos, newPos) {
-            state.reducedSections[key][index].lat = newPos.lat;
-            state.reducedSections[key][index].lng = newPos.lng;
+        function contractPolygonInwards(points, factorDegrees) {
+            if (!points || points.length < 3) return points;
+            const centerLat = points.reduce((sum, p) => sum + p.lat, 0) / points.length;
+            const centerLng = points.reduce((sum, p) => sum + p.lng, 0) / points.length;
 
-            const pts = state.reducedSections[key];
-            if (index === 0 && pts.length > 2 && pts[pts.length - 1].lat === oldPos.lat) {
-                pts[pts.length - 1].lat = newPos.lat;
-                pts[pts.length - 1].lng = newPos.lng;
-            }
-
-            // Synchronize Inner/Outer duplicates
-            if (key === 'fgOuter') {
-                state.reducedSections.cvInner = JSON.parse(JSON.stringify(state.reducedSections.fgOuter));
-            } else if (key === 'cvOuter') {
-                state.reducedSections.grbInner = JSON.parse(JSON.stringify(state.reducedSections.cvOuter));
-            }
-
-            // Cascade outwards
-            const fgToCvDist = state.calculatedDistances.fgToCvMeters || 15;
-            state.reducedSections.cvOuter = expandPolygonOutwardsToKeepLineGap(state.reducedSections.fgOuter, state.reducedSections.cvOuter, fgToCvDist);
-            state.reducedSections.cvInner = JSON.parse(JSON.stringify(state.reducedSections.fgOuter));
-
-            const cvToGrbDist = state.calculatedDistances.cvToGrbMeters || 20;
-            state.reducedSections.grbOuter = expandPolygonOutwardsToKeepLineGap(state.reducedSections.cvOuter, state.reducedSections.grbOuter, cvToGrbDist);
-            state.reducedSections.grbInner = JSON.parse(JSON.stringify(state.reducedSections.cvOuter));
+            return points.map(p => {
+                const dLat = centerLat - p.lat;
+                const dLng = centerLng - p.lng;
+                return {
+                    lat: p.lat + dLat * factorDegrees,
+                    lng: p.lng + dLng * factorDegrees,
+                    alt: p.alt
+                };
+            });
         }
 
+        // Render Map 1 (Original Data)
         function renderMapOriginal() {
             layerGroupOrig.clearLayers();
             let totalPts = 0;
-            const bounds = [];
+            const bounds = L.latLngBounds();
 
-            Object.keys(state.sections).forEach(key => {
+            const order = ['grbOuter', 'cvOuter', 'fgOuter', 'grbInner', 'cvInner'];
+            order.forEach(key => {
                 const pts = state.sections[key];
                 if (!pts || pts.length === 0) return;
                 totalPts += pts.length;
 
-                const latLngs = pts.map(p => [p.lat, p.lng]);
-                bounds.push(...latLngs);
+                const latLngs = pts.map(p => {
+                    bounds.extend([p.lat, p.lng]);
+                    return [p.lat, p.lng];
+                });
 
                 const poly = L.polygon(latLngs, {
                     color: STYLES[key].color,
@@ -677,18 +625,61 @@
             });
 
             document.getElementById('orig-points-badge').innerText = `${totalPts} Punkte total`;
-            if (bounds.length > 0) {
-                mapOrig.fitBounds(L.latLngBounds(bounds), { padding: [20, 20] });
-                mapRed.fitBounds(L.latLngBounds(bounds), { padding: [20, 20] });
+            if (bounds.isValid()) {
+                mapOrig.fitBounds(bounds, { padding: [30, 30] });
+                mapRed.fitBounds(bounds, { padding: [30, 30] });
+            }
+        }
+
+        function reduceAllSections() {
+            const redFG = simplifyPolygonVisvalingam(state.sections.fgOuter, 20);
+            const redFG_Inward = contractPolygonInwards(redFG, 0.001);
+            const redCV = simplifyPolygonVisvalingam(state.sections.cvOuter, 20);
+            const redGRB = simplifyPolygonVisvalingam(state.sections.grbOuter, 20);
+
+            state.reducedSections = {
+                fgOuter: redFG_Inward,
+                cvOuter: redCV,
+                cvInner: JSON.parse(JSON.stringify(redFG_Inward)),
+                grbOuter: redGRB,
+                grbInner: JSON.parse(JSON.stringify(redCV))
+            };
+        }
+
+        // Move Coupled Ring Vertices Simultaneously (FG Outer <-> CV Inner, CV Outer <-> GRB Inner)
+        function moveCoupledVertex(ringGroup, index, newPos) {
+            if (ringGroup === 'innerGroup') {
+                // Modifies FG Outer and CV Inner together
+                updatePolyPoint(state.reducedSections.fgOuter, index, newPos);
+                state.reducedSections.cvInner = JSON.parse(JSON.stringify(state.reducedSections.fgOuter));
+            } else if (ringGroup === 'middleGroup') {
+                // Modifies CV Outer and GRB Inner together
+                updatePolyPoint(state.reducedSections.cvOuter, index, newPos);
+                state.reducedSections.grbInner = JSON.parse(JSON.stringify(state.reducedSections.cvOuter));
+            } else if (ringGroup === 'outerGroup') {
+                // Modifies GRB Outer
+                updatePolyPoint(state.reducedSections.grbOuter, index, newPos);
+            }
+        }
+
+        function updatePolyPoint(pts, index, newPos) {
+            if (!pts || index >= pts.length) return;
+            pts[index].lat = newPos.lat;
+            pts[index].lng = newPos.lng;
+            if (index === 0 && pts.length > 2) {
+                pts[pts.length - 1].lat = newPos.lat;
+                pts[pts.length - 1].lng = newPos.lng;
             }
         }
 
         function renderMapReduced() {
             layerGroupReduced.clearLayers();
             layerGroupBgOverlay.clearLayers();
+            layerGroupTapeMeasure.clearLayers();
 
             let totalPts = 0;
 
+            // Background Original Silhouette
             if (state.showOriginalBg) {
                 Object.keys(state.sections).forEach(key => {
                     const pts = state.sections[key];
@@ -699,12 +690,11 @@
                 });
             }
 
-            const order = ['grbOuter', 'cvOuter', 'fgOuter', 'grbInner', 'cvInner'];
-            
-            order.forEach(key => {
+            // Draw Reduced Polygons
+            const renderOrder = ['grbOuter', 'cvOuter', 'fgOuter', 'grbInner', 'cvInner'];
+            renderOrder.forEach(key => {
                 const pts = state.reducedSections[key];
                 if (!pts || pts.length === 0) return;
-
                 totalPts += pts.length;
                 const latLngs = pts.map(p => [p.lat, p.lng]);
 
@@ -715,34 +705,29 @@
                     dashArray: STYLES[key].dashArray || null
                 });
                 layerGroupReduced.addLayer(poly);
-
-                pts.forEach((pt, index) => {
-                    const iconHtml = `<div class="marker-pin" style="background-color: ${STYLES[key].color}"></div>`;
-                    const customIcon = L.divIcon({
-                        html: iconHtml,
-                        className: 'custom-div-icon',
-                        iconSize: [14, 14],
-                        iconAnchor: [7, 7]
-                    });
-
-                    const marker = L.marker([pt.lat, pt.lng], {
-                        icon: customIcon,
-                        draggable: true
-                    });
-
-                    marker.bindTooltip(`${STYLES[key].label} (#${index + 1})`, { direction: 'top' });
-
-                    const oldPos = { lat: pt.lat, lng: pt.lng };
-                    marker.on('dragend', (e) => {
-                        const newPos = e.target.getLatLng();
-                        handleMarkerDrag(key, index, oldPos, newPos);
-                        pushHistoryState();
-                        renderMapReduced();
-                    });
-
-                    layerGroupReduced.addLayer(marker);
-                });
             });
+
+            // Interactive Coupled Drag Markers
+            // 1. Inner Coupled Ring (FG Outer & CV Inner)
+            state.reducedSections.fgOuter.forEach((pt, idx) => {
+                if (idx === state.reducedSections.fgOuter.length - 1) return; // Skip closed end-point duplicate
+                createCoupledMarker(pt, 'innerGroup', idx, '#22c55e', 'Flight Geography & Contingency Inner');
+            });
+
+            // 2. Middle Coupled Ring (CV Outer & GRB Inner)
+            state.reducedSections.cvOuter.forEach((pt, idx) => {
+                if (idx === state.reducedSections.cvOuter.length - 1) return;
+                createCoupledMarker(pt, 'middleGroup', idx, '#f97316', 'Contingency Outer & GRB Inner');
+            });
+
+            // 3. Outer Ring (GRB Outer)
+            state.reducedSections.grbOuter.forEach((pt, idx) => {
+                if (idx === state.reducedSections.grbOuter.length - 1) return;
+                createCoupledMarker(pt, 'outerGroup', idx, '#ef4444', 'Ground Risk Buffer Outer');
+            });
+
+            // Update Dynamic Live Tape Measures
+            updateTapeMeasures();
 
             document.getElementById('reduced-points-badge').innerText = `${totalPts} Punkte total`;
             document.getElementById('count-fg').innerText = `${state.reducedSections.fgOuter.length} Pkt`;
@@ -750,8 +735,112 @@
             document.getElementById('count-grb').innerText = `${state.reducedSections.grbOuter.length + state.reducedSections.grbInner.length} Pkt`;
         }
 
-        // History Undo/Redo/Reset
+        function createCoupledMarker(pt, groupName, index, color, tooltipText) {
+            const iconHtml = `<div class="marker-pin" style="background-color: ${color}"></div>`;
+            const customIcon = L.divIcon({
+                html: iconHtml,
+                className: 'custom-div-icon',
+                iconSize: [14, 14],
+                iconAnchor: [7, 7]
+            });
+
+            const marker = L.marker([pt.lat, pt.lng], {
+                icon: customIcon,
+                draggable: true
+            });
+
+            marker.bindTooltip(`${tooltipText} (#${index + 1})`, { direction: 'top' });
+
+            marker.on('drag', (e) => {
+                const newPos = e.target.getLatLng();
+                moveCoupledVertex(groupName, index, newPos);
+                // Fast Live update of polygon positions & tape measure
+                renderMapReducedFast();
+            });
+
+            marker.on('dragend', () => {
+                pushHistoryState();
+                renderMapReduced();
+            });
+
+            layerGroupReduced.addLayer(marker);
+        }
+
+        // Lightweight re-render for smooth dragging
+        function renderMapReducedFast() {
+            layerGroupTapeMeasure.clearLayers();
+            updateTapeMeasures();
+        }
+
+        function updateTapeMeasures() {
+            // Measure FG Outer to CV Outer
+            const conn1 = findShortestPolyConnection(state.reducedSections.fgOuter, state.reducedSections.cvOuter);
+            if (conn1 && conn1.p1 && conn1.p2) {
+                const d1 = Math.round(conn1.dist);
+                document.getElementById('dist-fg-cv').innerText = `${d1} m`;
+
+                if (state.showTapeMeasure) {
+                    drawTapeMeasureLine(conn1.p1, conn1.p2, `${d1} m`, '#10b981');
+                }
+            } else {
+                document.getElementById('dist-fg-cv').innerText = `- m`;
+            }
+
+            // Measure CV Outer to GRB Outer
+            const conn2 = findShortestPolyConnection(state.reducedSections.cvOuter, state.reducedSections.grbOuter);
+            if (conn2 && conn2.p1 && conn2.p2) {
+                const d2 = Math.round(conn2.dist);
+                document.getElementById('dist-cv-grb').innerText = `${d2} m`;
+
+                if (state.showTapeMeasure) {
+                    drawTapeMeasureLine(conn2.p1, conn2.p2, `${d2} m`, '#f97316');
+                }
+            } else {
+                document.getElementById('dist-cv-grb').innerText = `- m`;
+            }
+        }
+
+        function drawTapeMeasureLine(p1, p2, textLabel, color) {
+            const line = L.polyline([[p1.lat, p1.lng], [p2.lat, p2.lng]], {
+                color: '#000000',
+                weight: 2.5,
+                dashArray: '5,5'
+            });
+
+            const midLat = (p1.lat + p2.lat) / 2;
+            const midLng = (p1.lng + p2.lng) / 2;
+
+            const labelIcon = L.divIcon({
+                className: 'bg-slate-950 border border-slate-700 text-[10px] font-mono text-white font-bold px-1.5 py-0.5 rounded shadow',
+                html: textLabel,
+                iconSize: [45, 20],
+                iconAnchor: [22, 10]
+            });
+
+            const labelMarker = L.marker([midLat, midLng], { icon: labelIcon, interactive: false });
+
+            layerGroupTapeMeasure.addLayer(line);
+            layerGroupTapeMeasure.addLayer(labelMarker);
+        }
+
+        // Move Coupled Ring Vertices Simultaneously (FG Outer <-> CV Inner, CV Outer <-> GRB Inner)
+        function moveCoupledVertex(ringGroup, index, newPos) {
+            if (ringGroup === 'innerGroup') {
+                // Modifies FG Outer and CV Inner together for visual and export
+                updatePolyPoint(state.reducedSections.fgOuter, index, newPos);
+                state.reducedSections.cvInner = JSON.parse(JSON.stringify(state.reducedSections.fgOuter));
+            } else if (ringGroup === 'middleGroup') {
+                // Modifies CV Outer and GRB Inner together for visual and export
+                updatePolyPoint(state.reducedSections.cvOuter, index, newPos);
+                state.reducedSections.grbInner = JSON.parse(JSON.stringify(state.reducedSections.cvOuter));
+            } else if (ringGroup === 'outerGroup') {
+                // Modifies GRB Outer
+                updatePolyPoint(state.reducedSections.grbOuter, index, newPos);
+            }
+        }
+
         function pushHistoryState() {
+            // Trim history if we are in the middle of undo stack
             if (state.historyIndex < state.history.length - 1) {
                 state.history = state.history.slice(0, state.historyIndex + 1);
             }
@@ -779,7 +868,7 @@
         }
 
         function resetToInitialReduced() {
-            reduceAllSectionsCascading();
+            reduceAllSections();
             pushHistoryState();
             renderMapReduced();
         }
