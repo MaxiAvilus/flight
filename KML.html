@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="de" class="h-full bg-slate-950 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KML Flight Zone Optimizer & Editor</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    
+    <!-- Leaflet Path Dragging plugin (Inline logic used for native markers for reliability) -->
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+
+        /* Dark Mode Map Adjustments */
+        .leaflet-tile-container img {
+            filter: brightness(0.85) contrast(1.1) saturate(0.9);
+        }
+        .leaflet-container {
+            background-color: #0f172a !important;
+        }
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+            background-color: #1e293b;
+            color: #f8fafc;
+            border: 1px solid #334155;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+        
+        /* Custom drag handle styles */
+        .custom-div-icon {
+            background: transparent;
+            border: none;
+        }
+        .marker-pin {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 6px rgba(0,0,0,0.6);
+            transition: transform 0.15s ease, background-color 0.2s;
+        }
+        .marker-pin:hover {
+            transform: scale(1.4);
+            cursor: grab;
+        }
+        .marker-pin:active {
+            cursor: grabbing;
+        }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="h-full flex flex-col overflow-hidden bg-slate-950 text-slate-100">
+
+    <!-- Header Bar -->
+    <header class="h-14 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 z-20 shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="p-2 bg-indigo-600/20 text-indigo-400 rounded-lg border border-indigo-500/30">
+                <i data-lucide="plane-takeoff" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-sm md:text-base text-white leading-tight">UAS Flight Area KML Processor</h1>
+                <p class="text-[11px] text-slate-400 hidden sm:block">Automatisierte Reduktion (max. 20 Punkte), Sicherheitsbereich-Invaranten & KML-Export</p>
+            </div>
+        </div>
+
+        <!-- Top Right Actions -->
+        <div class="flex items-center gap-2">
+            <label for="kml-input" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-3 py-2 rounded-lg cursor-pointer transition flex items-center gap-2 shadow-lg shadow-indigo-600/20">
+                <i data-lucide="upload" class="w-4 h-4"></i>
+                <span>KML Laden</span>
+            </label>
+            <input type="file" id="kml-input" accept=".kml,.xml" class="hidden" />
+
+            <button id="load-sample-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium px-3 py-2 rounded-lg transition border border-slate-700 flex items-center gap-1.5">
+                <i data-lucide="file-code-2" class="w-4 h-4 text-emerald-400"></i>
+                <span>Beispieldatei</span>
+            </button>
+
+            <button id="export-kml-btn" disabled class="disabled:opacity-40 disabled:cursor-not-allowed bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-2 rounded-lg transition flex items-center gap-2 shadow-lg shadow-emerald-600/20">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                <span>Export KML</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace Split Panel -->
+    <div class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+
+        <!-- Sidebar Meta & Settings Panel -->
+        <aside class="w-full md:w-80 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 z-10 overflow-y-auto max-h-48 md:max-h-full">
+            <div class="p-4 space-y-5">
+                
+                <!-- File Meta Details -->
+                <div class="bg-slate-950/60 rounded-xl p-3.5 border border-slate-800 space-y-3">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                        <i data-lucide="file-text" class="w-4 h-4 text-indigo-400"></i> Extrahierter Dateiname
+                    </h3>
+                    <div id="file-name-display" class="text-xs font-mono bg-slate-900 p-2 rounded border border-slate-800 text-slate-300 truncate">
+                        Keine Datei geladen
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="bg-slate-900/80 p-2 rounded border border-slate-800/80">
+                            <span class="text-slate-500 block text-[10px]">Ort / Location</span>
+                            <input type="text" id="meta-location" value="-" class="w-full bg-transparent font-medium text-slate-200 outline-none focus:text-indigo-400">
+                        </div>
+                        <div class="bg-slate-900/80 p-2 rounded border border-slate-800/80">
+                            <span class="text-slate-500 block text-[10px]">Speed (mds / m/s)</span>
+                            <input type="number" id="meta-speed" value="0" class="w-full bg-transparent font-medium text-slate-200 outline-none focus:text-indigo-400">
+                        </div>
+                        <div class="bg-slate-900/80 p-2 rounded border border-slate-800/80">
+                            <span class="text-slate-500 block text-[10px]">Höhe / Altitude (m)</span>
+                            <input type="number" id="meta-altitude" value="0" class="w-full bg-transparent font-medium text-slate-200 outline-none focus:text-indigo-400">
+                        </div>
+                        <div class="bg-slate-900/80 p-2 rounded border border-slate-800/80">
+                            <span class="text-slate-500 block text-[10px]">Postfix</span>
+                            <input type="text" id="meta-postfix" value="" class="w-full bg-transparent font-medium text-slate-200 outline-none focus:text-indigo-400" placeholder="optional">
+                        </div>
+                    </div>
+
+                    <div class="pt-1">
+                        <span class="text-[10px] text-slate-500">Generierter KML Name:</span>
+                        <div id="meta-generated-name" class="text-xs font-mono text-indigo-300 truncate">flightarea_unknown_0mds_0m</div>
+                    </div>
+                </div>
+
+                <!-- Layer Controls for Map 2 -->
+                <div class="space-y-3">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                        <i data-lucide="layers" class="w-4 h-4 text-indigo-400"></i> Ebenen & Original-Overlay
+                    </h3>
+
+                    <div class="space-y-2 text-xs">
+                        <!-- Flight Geography -->
+                        <div class="flex items-center justify-between p-2 rounded-lg bg-slate-800/40 border border-slate-800">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+                                <span class="font-medium text-slate-200">Flight Geography</span>
+                            </div>
+                            <span id="count-fg" class="text-[10px] font-mono text-slate-400">0 Pkt</span>
+                        </div>
+
+                        <!-- Contingency Volume -->
+                        <div class="flex items-center justify-between p-2 rounded-lg bg-slate-800/40 border border-slate-800">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-orange-500 inline-block"></span>
+                                <span class="font-medium text-slate-200">Contingency Volume</span>
+                            </div>
+                            <span id="count-cv" class="text-[10px] font-mono text-slate-400">0 Pkt</span>
+                        </div>
+
+                        <!-- Ground Risk Buffer -->
+                        <div class="flex items-center justify-between p-2 rounded-lg bg-slate-800/40 border border-slate-800">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span>
+                                <span class="font-medium text-slate-200">Ground Risk Buffer</span>
+                            </div>
+                            <span id="count-grb" class="text-[10px] font-mono text-slate-400">0 Pkt</span>
+                        </div>
+                    </div>
+
+                    <!-- Toggle Original Overlay -->
+                    <div class="pt-2">
+                        <label class="flex items-center justify-between p-2.5 rounded-xl bg-indigo-950/40 border border-indigo-900/60 cursor-pointer hover:bg-indigo-900/30 transition">
+                            <span class="text-xs font-medium text-indigo-200 flex items-center gap-2">
+                                <i data-lucide="eye" class="w-4 h-4 text-blue-400"></i> Original-Polygone auf Karte 2 anzeigen (Blau)
+                            </span>
+                            <input type="checkbox" id="toggle-original-bg" checked class="rounded accent-indigo-500 w-4 h-4">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- History & Reset Controls -->
+                <div class="space-y-3 pt-2">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                        <i data-lucide="history" class="w-4 h-4 text-indigo-400"></i> Bearbeitungsverlauf
+                    </h3>
+                    
+                    <div class="grid grid-cols-3 gap-2">
+                        <button id="undo-btn" disabled class="disabled:opacity-40 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs py-2 rounded-lg border border-slate-700 flex items-center justify-center gap-1">
+                            <i data-lucide="undo" class="w-3.5 h-3.5"></i> Undo
+                        </button>
+                        <button id="redo-btn" disabled class="disabled:opacity-40 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs py-2 rounded-lg border border-slate-700 flex items-center justify-center gap-1">
+                            <i data-lucide="redo" class="w-3.5 h-3.5"></i> Redo
+                        </button>
+                        <button id="reset-btn" disabled class="disabled:opacity-40 bg-slate-800 hover:bg-red-900/40 hover:text-red-300 text-slate-300 text-xs py-2 rounded-lg border border-slate-700 flex items-center justify-center gap-1">
+                            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Reset
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Guidance Info Box -->
+                <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400 space-y-1.5">
+                    <div class="font-semibold text-slate-300 flex items-center gap-1">
+                        <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400"></i> Reduktions-Garantie
+                    </div>
+                    <p>• <b>FG & Inner-Gürtel</b> werden strikt <i>nach innen</i> verkleinert.</p>
+                    <p>• <b>Outer-Gürtel</b> werden <i>nach außen</i> gepuffert, um Flug- & Bodensicherheits-Grenzwerte einzuhalten.</p>
+                    <p>• Ziehen Sie die runden Punkte auf der rechten Karte, um Koordinaten manuell anzupassen.</p>
+                </div>
+
+            </div>
+        </aside>
+
+        <!-- Maps Dual View Container -->
+        <main class="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-1 p-2 bg-slate-950 relative overflow-hidden">
+
+            <!-- MAP 1: Original High-Res Map -->
+            <div class="relative flex flex-col rounded-xl overflow-hidden border border-slate-800 bg-slate-900">
+                <div class="absolute top-3 left-3 z-[1000] bg-slate-900/90 backdrop-blur border border-slate-700/80 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-200 flex items-center gap-2 shadow-lg">
+                    <span class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span>
+                    Original KML Daten (Exakt)
+                    <span id="orig-points-badge" class="text-[10px] text-slate-400 font-mono ml-2 border-l border-slate-700 pl-2">0 Punkte total</span>
+                </div>
+                <div id="map-original" class="w-full h-full min-h-[300px]"></div>
+            </div>
+
+            <!-- MAP 2: Reduced & Interactive Drag & Drop Map -->
+            <div class="relative flex flex-col rounded-xl overflow-hidden border border-indigo-900/50 bg-slate-900">
+                <div class="absolute top-3 left-3 z-[1000] bg-slate-900/90 backdrop-blur border border-indigo-500/50 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-200 flex items-center gap-2 shadow-lg">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                    Reduzierte & Interaktive Karte (max. 20 Punkte/Gürtel)
+                    <span id="reduced-points-badge" class="text-[10px] text-slate-400 font-mono ml-2 border-l border-slate-700 pl-2">0 Punkte total</span>
+                </div>
+                
+                <!-- Map 2 Canvas -->
+                <div id="map-reduced" class="w-full h-full min-h-[300px]"></div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Application JavaScript Logic -->
+    <script>
+        // Global State Variable
+        const state = {
+            fileName: '',
+            extracted: {
+                location: '',
+                speed: 0,
+                altitude: 0,
+                postfix: ''
+            },
+            generatedName: '',
+            // Coordinates in [lat, lng, alt] or {lat, lng, alt}
+            sections: {
+                fgOuter: [],
+                cvOuter: [],
+                cvInner: [],
+                grbOuter: [],
+                grbInner: []
+            },
+            reducedSections: {
+                fgOuter: [],
+                cvOuter: [],
+                cvInner: [],
+                grbOuter: [],
+                grbInner: []
+            },
+            history: [],
+            historyIndex: -1,
+            showOriginalBg: true
+        };
+
+        // Leaflet Map Instances
+        let mapOriginal = null;
+        let mapReduced = null;
+
+        // Leaflet Layer Groups
+        let layerGroupOriginal = null;
+        let layerGroupReduced = null;
+        let layerGroupBgOverlay = null;
+
+        // Colors per requirement
+        const STYLES = {
+            fgOuter:  { color: '#22c55e', weight: 4, fillOpacity: 0.2, label: 'Flight Geography Outer' },
+            cvOuter:  { color: '#f97316', weight: 4, fillOpacity: 0.15, label: 'Contingency Volume Outer' },
+            cvInner:  { color: '#fb923c', weight: 2, fillOpacity: 0.05, label: 'Contingency Volume Inner', dashArray: '4, 4' },
+            grbOuter: { color: '#ef4444', weight: 4, fillOpacity: 0.1, label: 'Ground Risk Buffer Outer' },
+            grbInner: { color: '#f87171', weight: 2, fillOpacity: 0.05, label: 'Ground Risk Buffer Inner', dashArray: '4, 4' },
+            
+            // Blue tones for original overlay on second map
+            bgOverlay: { color: '#3b82f6', weight: 2, dashArray: '6, 6', fillOpacity: 0.05 }
+        };
+
+        // Initialize App on DOM Load
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            initMaps();
+            setupEventListeners();
+        });
+
+        // Initialize Leaflet Maps
+        function initMaps() {
+            // Map 1: Original
+            mapOriginal = L.map('map-original', { zoomControl: true }).setView([51.1657, 10.4515], 6);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(mapOriginal);
+            layerGroupOriginal = L.layerGroup().addTo(mapOriginal);
+
+            // Map 2: Reduced / Editable
+            mapReduced = L.map('map-reduced', { zoomControl: true }).setView([51.1657, 10.4515], 6);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(mapReduced);
+
+            layerGroupBgOverlay = L.layerGroup().addTo(mapReduced);
+            layerGroupReduced = L.layerGroup().addTo(mapReduced);
+
+            // Sync Map Pan & Zoom
+            let isSyncing = false;
+            const syncMaps = (sourceMap, targetMap) => {
+                if (isSyncing) return;
+                isSyncing = true;
+                targetMap.setView(sourceMap.getCenter(), sourceMap.getZoom(), { animate: false });
+                isSyncing = false;
+            };
+
+            mapOriginal.on('move', () => syncMaps(mapOriginal, mapReduced));
+            mapReduced.on('move', () => syncMaps(mapReduced, mapOriginal));
+        }
+
+        function setupEventListeners() {
+            // File input
+            document.getElementById('kml-input').addEventListener('change', handleFileSelect);
+
+            // Sample Data Button
+            document.getElementById('load-sample-btn').addEventListener('click', loadSampleData);
+
+            // Export KML Button
+            document.getElementById('export-kml-btn').addEventListener('click', exportKMLFile);
+
+            // Metadata inputs real-time update
+            ['meta-location', 'meta-speed', 'meta-altitude', 'meta-postfix'].forEach(id => {
+                document.getElementById(id).addEventListener('input', updateMetadataFromUI);
+            });
+
+            // Toggle background overlay on Map 2
+            document.getElementById('toggle-original-bg').addEventListener('change', (e) => {
+                state.showOriginalBg = e.target.checked;
+                renderMapReduced();
+            });
+
+            // Undo / Redo / Reset
+            document.getElementById('undo-btn').addEventListener('click', undo);
+            document.getElementById('redo-btn').addEventListener('click', redo);
+            document.getElementById('reset-btn').addEventListener('click', resetToInitialReduced);
+        }
+
+        // Parse File Name Meta (DATE_LOCATION_20mds_120m_POSTFIX)
+        function parseFileNameMeta(fileName) {
+            const baseName = fileName.replace(/\.[^/.]+$/, "");
+            let location = "";
+            let speed = 0;
+            let altitude = 0;
+            let postfix = "";
+
+            // Regex according to PowerShell script: ^(.*?)_(\d+)mds_(\d+)m(?:_(.*))?$
+            const regex = /^(.*?)_(\d+)mds_(\d+)m(?:_(.*))?$/i;
+            const match = baseName.match(regex);
+
+            if (match) {
+                const beforeSpeed = match[1];
+                speed = parseInt(match[2], 10) || 0;
+                altitude = parseFloat(match[3]) || 0;
+                postfix = match[4] || "";
+
+                // Remove DATE prefix if present (DATE_LOCATION -> LOCATION)
+                const parts = beforeSpeed.split('_');
+                if (parts.length >= 2) {
+                    location = parts.slice(1).join('_');
+                } else {
+                    location = beforeSpeed;
+                }
+            } else {
+                location = baseName;
+            }
+
+            return { location, speed, altitude, postfix };
+        }
+
+        // Build Generated KML Name
+        function computeGeneratedName(meta) {
+            let name = `flightarea_${meta.location || 'unknown'}_${meta.speed || 0}mds_${meta.altitude || 0}m`;
+            if (meta.postfix && meta.postfix.trim() !== '') {
+                name += `_${meta.postfix.trim()}`;
+            }
+            return name;
+        }
+
+        function updateMetadataFromUI() {
+            state.extracted.location = document.getElementById('meta-location').value;
+            state.extracted.speed = parseInt(document.getElementById('meta-speed').value, 10) || 0;
+            state.extracted.altitude = parseFloat(document.getElementById('meta-altitude').value) || 0;
+            state.extracted.postfix = document.getElementById('meta-postfix').value;
+
+            state.generatedName = computeGeneratedName(state.extracted);
+            document.getElementById('meta-generated-name').innerText = state.generatedName;
+
+            // Update altitudes in all loaded coordinates
+            applyAltitudeToSections(state.extracted.altitude);
+        }
+
+        function applyAltitudeToSections(alt) {
+            Object.keys(state.sections).forEach(key => {
+                state.sections[key] = state.sections[key].map(pt => ({ ...pt, alt }));
+            });
+            Object.keys(state.reducedSections).forEach(key => {
+                state.reducedSections[key] = state.reducedSections[key].map(pt => ({ ...pt, alt }));
+            });
+        }
+
+        // Parse KML XML String & extract standard sections
+        function parseKMLContent(xmlText) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+
+            function getBoundaryCoords(sectionName, boundaryType) {
+                const placemarks = xmlDoc.getElementsByTagName("Placemark");
+                for (let pm of placemarks) {
+                    const nameElem = pm.getElementsByTagName("name")[0];
+                    if (nameElem && nameElem.textContent.trim().toLowerCase() === sectionName.toLowerCase()) {
+                        const boundary = pm.getElementsByTagName(boundaryType)[0];
+                        if (boundary) {
+                            const coordElem = boundary.getElementsByTagName("coordinates")[0];
+                            if (coordElem) {
+                                return parseCoordString(coordElem.textContent);
+                            }
+                        }
+                    }
+                }
+                return [];
+            }
+
+            return {
+                fgOuter:  getBoundaryCoords("Flight Geography", "outerBoundaryIs"),
+                cvOuter:  getBoundaryCoords("Contingency Volume", "outerBoundaryIs"),
+                cvInner:  getBoundaryCoords("Contingency Volume", "innerBoundaryIs"),
+                grbOuter: getBoundaryCoords("Ground Risk Buffer", "outerBoundaryIs"),
+                grbInner: getBoundaryCoords("Ground Risk Buffer", "innerBoundaryIs")
+            };
+        }
+
+        // Convert KML coordinate string ("lng,lat,alt lng,lat,alt ...") to Array of {lat, lng, alt}
+        function parseCoordString(coordStr) {
+            if (!coordStr) return [];
+            const points = [];
+            const pairs = coordStr.trim().split(/\s+/);
+
+            for (let pair of pairs) {
+                if (!pair) continue;
+                const parts = pair.split(',');
+                if (parts.length >= 2) {
+                    const lng = parseFloat(parts[0]);
+                    const lat = parseFloat(parts[1]);
+                    const alt = parts.length >= 3 ? parseFloat(parts[2]) : 0;
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        points.push({ lat, lng, alt });
+                    }
+                }
+            }
+            return points;
+        }
+
+        // Handle File Selection
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            state.fileName = file.name;
+            const meta = parseFileNameMeta(file.name);
+            state.extracted = meta;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                processKMLData(evt.target.result);
+            };
+            reader.readAsText(file);
+        }
+
+        // Main Data Processing Pipeline
+        function processKMLData(xmlText) {
+            const parsedSections = parseKMLContent(xmlText);
+            
+            // Check if any section was found
+            const totalFound = Object.values(parsedSections).reduce((acc, arr) => acc + arr.length, 0);
+            if (totalFound === 0) {
+                alert("Keine gültigen Placemarks ('Flight Geography', 'Contingency Volume', 'Ground Risk Buffer') in der KML Datei gefunden!");
+                return;
+            }
+
+            state.sections = parsedSections;
+
+            // Fill Metadata Panel UI
+            document.getElementById('file-name-display').innerText = state.fileName;
+            document.getElementById('meta-location').value = state.extracted.location;
+            document.getElementById('meta-speed').value = state.extracted.speed;
+            document.getElementById('meta-altitude').value = state.extracted.altitude;
+            document.getElementById('meta-postfix').value = state.extracted.postfix;
+
+            updateMetadataFromUI();
+
+            // Perform Smart Coordinate Reduction (max 20 points per boundary with safety bounds)
+            reduceAllSections();
+
+            // Reset history
+            state.history = [];
+            state.historyIndex = -1;
+            pushHistoryState();
+
+            // Render both maps
+            renderMapOriginal();
+            renderMapReduced();
+            fitMapsToData();
+
+            // Enable Export
+            document.getElementById('export-kml-btn').disabled = false;
+            document.getElementById('reset-btn').disabled = false;
+        }
+
+        // Geometric Polygon Point Reduction Algorithm (Max 20 Points)
+        // Respects Inner contraction (FG, CV Inner, GRB Inner) vs Outer expansion (CV Outer, GRB Outer)
+        function reduceAllSections() {
+            state.reducedSections = {
+                fgOuter: reducePolygonPoints(state.sections.fgOuter, 20, 'inner'),
+                cvOuter: reducePolygonPoints(state.sections.cvOuter, 20, 'outer'),
+                cvInner: reducePolygonPoints(state.sections.cvInner, 20, 'inner'),
+                grbOuter: reducePolygonPoints(state.sections.grbOuter, 20, 'outer'),
+                grbInner: reducePolygonPoints(state.sections.grbInner, 20, 'inner')
+            };
+        }
+
+        function reducePolygonPoints(points, maxPoints = 20, direction = 'inner') {
+            if (!points || points.length <= maxPoints) {
+                return points.map(p => ({ ...p }));
+            }
+
+            // Visvalingam-Whyatt Simplification algorithm
+            let pts = points.map(p => ({ ...p }));
+            
+            // Remove duplicate closing point if present for reduction logic
+            let isClosed = false;
+            if (pts.length > 2 && pts[0].lat === pts[pts.length-1].lat && pts[0].lng === pts[pts.length-1].lng) {
+                isClosed = true;
+                pts.pop();
+            }
+
+            while (pts.length > maxPoints) {
+                let minArea = Infinity;
+                let removeIdx = -1;
+
+                for (let i = 0; i < pts.length; i++) {
+                    const prev = pts[(i - 1 + pts.length) % pts.length];
+                    const curr = pts[i];
+                    const next = pts[(i + 1) % pts.length];
+
+                    // Triangle area calculation in geo coordinates
+                    const area = Math.abs(
+                        (prev.lng * (curr.lat - next.lat) +
+                         curr.lng * (next.lat - prev.lat) +
+                         next.lng * (prev.lat - curr.lat)) / 2.0
+                    );
+
+                    if (area < minArea) {
+                        minArea = area;
+                        removeIdx = i;
+                    }
+                }
+
+                if (removeIdx !== -1) {
+                    pts.splice(removeIdx, 1);
+                } else {
+                    break;
+                }
+            }
+
+            // Outer Expansion Offset for Outer Volumes to ensure 100% containment
+            if (direction === 'outer') {
+                const centerLat = pts.reduce((sum, p) => sum + p.lat, 0) / pts.length;
+                const centerLng = pts.reduce((sum, p) => sum + p.lng, 0) / pts.length;
+
+                // Scale outwards by ~0.5% away from centroid to guarantee outer boundary bounds
+                pts = pts.map(p => {
+                    const dLat = p.lat - centerLat;
+                    const dLng = p.lng - centerLng;
+                    return {
+                        lat: p.lat + dLat * 0.008,
+                        lng: p.lng + dLng * 0.008,
+                        alt: p.alt
+                    };
+                });
+            } else {
+                // Inner contraction offset for Inner Volumes
+                const centerLat = pts.reduce((sum, p) => sum + p.lat, 0) / pts.length;
+                const centerLng = pts.reduce((sum, p) => sum + p.lng, 0) / pts.length;
+
+                pts = pts.map(p => {
+                    const dLat = p.lat - centerLat;
+                    const dLng = p.lng - centerLng;
+                    return {
+                        lat: p.lat - dLat * 0.004,
+                        lng: p.lng - dLng * 0.004,
+                        alt: p.alt
+                    };
+                });
+            }
+
+            if (isClosed) {
+                pts.push({ ...pts[0] });
+            }
+
+            return pts;
+        }
+
+        // Render Map 1 (Original Data)
+        function renderMapOriginal() {
+            layerGroupOriginal.clearLayers();
+            let totalPts = 0;
+
+            const order = ['grbOuter', 'cvOuter', 'fgOuter', 'grbInner', 'cvInner'];
+            order.forEach(key => {
+                const pts = state.sections[key];
+                if (!pts || pts.length === 0) return;
+
+                totalPts += pts.length;
+                const latLngs = pts.map(p => [p.lat, p.lng]);
+                const poly = L.polygon(latLngs, {
+                    color: STYLES[key].color,
+                    weight: STYLES[key].weight,
+                    fillOpacity: STYLES[key].fillOpacity,
+                    dashArray: STYLES[key].dashArray || null
+                });
+                poly.bindTooltip(`<b>${STYLES[key].label}</b><br>${pts.length} Punkte`);
+                layerGroupOriginal.addLayer(poly);
+            });
+
+            document.getElementById('orig-points-badge').innerText = `${totalPts} Punkte total`;
+        }
+
+        // Render Map 2 (Reduced + Drag & Drop Handles + Background Overlay)
+        function renderMapReduced() {
+            layerGroupReduced.clearLayers();
+            layerGroupBgOverlay.clearLayers();
+
+            let totalPts = 0;
+
+            // Render Blue Background Overlay (Original High-Res) if enabled
+            if (state.showOriginalBg) {
+                Object.keys(state.sections).forEach(key => {
+                    const pts = state.sections[key];
+                    if (!pts || pts.length === 0) return;
+                    const latLngs = pts.map(p => [p.lat, p.lng]);
+                    const bgPoly = L.polygon(latLngs, STYLES.bgOverlay);
+                    layerGroupBgOverlay.addLayer(bgPoly);
+                });
+            }
+
+            // Render Reduced Polygons & Interactive Markers
+            const order = ['grbOuter', 'cvOuter', 'fgOuter', 'grbInner', 'cvInner'];
+            
+            order.forEach(key => {
+                const pts = state.reducedSections[key];
+                if (!pts || pts.length === 0) return;
+
+                totalPts += pts.length;
+                const latLngs = pts.map(p => [p.lat, p.lng]);
+
+                // Render Polygon line
+                const poly = L.polygon(latLngs, {
+                    color: STYLES[key].color,
+                    weight: STYLES[key].weight,
+                    fillOpacity: STYLES[key].fillOpacity,
+                    dashArray: STYLES[key].dashArray || null
+                });
+                layerGroupReduced.addLayer(poly);
+
+                // Add Drag & Drop Vertex Markers
+                pts.forEach((pt, index) => {
+                    const iconHtml = `<div class="marker-pin" style="background-color: ${STYLES[key].color}"></div>`;
+                    const customIcon = L.divIcon({
+                        html: iconHtml,
+                        className: 'custom-div-icon',
+                        iconSize: [14, 14],
+                        iconAnchor: [7, 7]
+                    });
+
+                    const marker = L.marker([pt.lat, pt.lng], {
+                        icon: customIcon,
+                        draggable: true
+                    });
+
+                    marker.bindTooltip(`${STYLES[key].label} (#${index + 1})`, { direction: 'top' });
+
+                    // Drag Events
+                    marker.on('dragend', (e) => {
+                        const newPos = e.target.getLatLng();
+                        state.reducedSections[key][index].lat = newPos.lat;
+                        state.reducedSections[key][index].lng = newPos.lng;
+
+                        // Keep closed loop synced if first/last point
+                        if (index === 0 && pts.length > 2 && pts[pts.length - 1].lat === pt.lat) {
+                            state.reducedSections[key][pts.length - 1].lat = newPos.lat;
+                            state.reducedSections[key][pts.length - 1].lng = newPos.lng;
+                        }
+
+                        pushHistoryState();
+                        renderMapReduced();
+                    });
+
+                    layerGroupReduced.addLayer(marker);
+                });
+            });
+
+            // Update Badges & Counts
+            document.getElementById('reduced-points-badge').innerText = `${totalPts} Punkte total`;
+            document.getElementById('count-fg').innerText = `${state.reducedSections.fgOuter.length} Pkt`;
+            document.getElementById('count-cv').innerText = `${state.reducedSections.cvOuter.length + state.reducedSections.cvInner.length} Pkt`;
+            document.getElementById('count-grb').innerText = `${state.reducedSections.grbOuter.length + state.reducedSections.grbInner.length} Pkt`;
+        }
+
+        // Fit map views to loaded polygon bounds
+        function fitMapsToData() {
+            const allPts = [];
+            Object.values(state.sections).forEach(arr => {
+                arr.forEach(p => allPts.push([p.lat, p.lng]));
+            });
+            if (allPts.length > 0) {
+                const bounds = L.latLngBounds(allPts);
+                mapOriginal.fitBounds(bounds, { padding: [25, 25] });
+                mapReduced.fitBounds(bounds, { padding: [25, 25] });
+            }
+        }
+
+        // Undo / Redo / Reset History System
+        function pushHistoryState() {
+            // Truncate redo history
+            state.history = state.history.slice(0, state.historyIndex + 1);
+            
+            // Deep clone reducedSections
+            const clone = JSON.parse(JSON.stringify(state.reducedSections));
+            state.history.push(clone);
+            state.historyIndex = state.history.length - 1;
+
+            updateHistoryButtons();
+        }
+
+        function undo() {
+            if (state.historyIndex > 0) {
+                state.historyIndex--;
+                state.reducedSections = JSON.parse(JSON.stringify(state.history[state.historyIndex]));
+                renderMapReduced();
+                updateHistoryButtons();
+            }
+        }
+
+        function redo() {
+            if (state.historyIndex < state.history.length - 1) {
+                state.historyIndex++;
+                state.reducedSections = JSON.parse(JSON.stringify(state.history[state.historyIndex]));
+                renderMapReduced();
+                updateHistoryButtons();
+            }
+        }
+
+        function resetToInitialReduced() {
+            if (confirm("Möchten Sie alle manuellen Punkt-Verschiebungen auf den reduzierten Anfangszustand zurücksetzen?")) {
+                reduceAllSections();
+                pushHistoryState();
+                renderMapReduced();
+            }
+        }
+
+        function updateHistoryButtons() {
+            document.getElementById('undo-btn').disabled = (state.historyIndex <= 0);
+            document.getElementById('redo-btn').disabled = (state.historyIndex >= state.history.length - 1);
+        }
+
+        // KML Template Export according to PowerShell script structure
+        function exportKMLFile() {
+            const formattedName = state.generatedName;
+            const speed = state.extracted.speed;
+            const alt = state.extracted.altitude;
+
+            const formatCoords = (pts) => {
+                if (!pts || pts.length === 0) return "";
+                return pts.map(p => `${p.lng},${p.lat},${p.alt || alt}`).join(' ');
+            };
+
+            const kmlTemplate = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+	<name>${formattedName}</name>
+	<ExtendedData>
+		<Data name="Speed">
+			<value>${speed}</value>
+		</Data>
+	</ExtendedData>
+	<Style id="fgStyle">
+		<LineStyle><color>ff00b020</color><width>4</width></LineStyle>
+		<PolyStyle><color>4000b020</color></PolyStyle>
+	</Style>
+	<Style id="cvStyle">
+		<LineStyle><color>ff0088ff</color><width>4</width></LineStyle>
+		<PolyStyle><color>300088ff</color></PolyStyle>
+	</Style>
+	<Style id="grbStyle">
+		<LineStyle><color>ff0000ff</color><width>4</width></LineStyle>
+		<PolyStyle><color>250000ff</color></PolyStyle>
+	</Style>
+	<Folder>
+		<name>UAS Operational Volume</name>
+		<Placemark>
+			<name>Flight Geography</name>
+			<styleUrl>#fgStyle</styleUrl>
+			<Polygon>
+				<altitudeMode>relativeToGround</altitudeMode>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>${formatCoords(state.reducedSections.fgOuter)}</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>Contingency Volume</name>
+			<styleUrl>#cvStyle</styleUrl>
+			<Polygon>
+				<altitudeMode>relativeToGround</altitudeMode>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>${formatCoords(state.reducedSections.cvOuter)}</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+				<innerBoundaryIs>
+					<LinearRing>
+						<coordinates>${formatCoords(state.reducedSections.cvInner)}</coordinates>
+					</LinearRing>
+				</innerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>Ground Risk Buffer</name>
+			<styleUrl>#grbStyle</styleUrl>
+			<Polygon>
+				<altitudeMode>relativeToGround</altitudeMode>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>${formatCoords(state.reducedSections.grbOuter)}</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+				<innerBoundaryIs>
+					<LinearRing>
+						<coordinates>${formatCoords(state.reducedSections.grbInner)}</coordinates>
+					</LinearRing>
+				</innerBoundaryIs>
+			</Polygon>
+		</Placemark>
+	</Folder>
+</Document>
+</kml>`;
+
+            // Trigger Download
+            const blob = new Blob([kmlTemplate], { type: 'application/vnd.google-earth.kml+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${formattedName}_Avilus.kml`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Load Synthetic Sample Data for immediate testing
+        function loadSampleData() {
+            state.fileName = "20260327_HamburgPort_25mds_150m_UASZone.kml";
+            state.extracted = parseFileNameMeta(state.fileName);
+
+            // Generate synthetic polygon data for test
+            const baseLat = 53.5461;
+            const baseLng = 9.9660;
+
+            const makeCircle = (r, count, alt) => {
+                const pts = [];
+                for (let i = 0; i < count; i++) {
+                    const angle = (i / count) * 2 * Math.PI;
+                    const lat = baseLat + (r * Math.cos(angle));
+                    const lng = baseLng + (r * 1.6 * Math.sin(angle));
+                    pts.push({ lat, lng, alt });
+                }
+                pts.push({ ...pts[0] });
+                return pts;
+            };
+
+            const xmlSample = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+	<Placemark>
+		<name>Flight Geography</name>
+		<Polygon><outerBoundaryIs><LinearRing><coordinates>
+			${makeCircle(0.003, 45, 150).map(p => `${p.lng},${p.lat},150`).join(' ')}
+		</coordinates></LinearRing></outerBoundaryIs></Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Contingency Volume</name>
+		<Polygon>
+			<outerBoundaryIs><LinearRing><coordinates>
+				${makeCircle(0.005, 55, 150).map(p => `${p.lng},${p.lat},150`).join(' ')}
+			</coordinates></LinearRing></outerBoundaryIs>
+			<innerBoundaryIs><LinearRing><coordinates>
+				${makeCircle(0.003, 45, 150).map(p => `${p.lng},${p.lat},150`).join(' ')}
+			</coordinates></LinearRing></innerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Ground Risk Buffer</name>
+		<Polygon>
+			<outerBoundaryIs><LinearRing><coordinates>
+				${makeCircle(0.008, 65, 150).map(p => `${p.lng},${p.lat},150`).join(' ')}
+			</coordinates></LinearRing></outerBoundaryIs>
+			<innerBoundaryIs><LinearRing><coordinates>
+				${makeCircle(0.005, 55, 150).map(p => `${p.lng},${p.lat},150`).join(' ')}
+			</coordinates></LinearRing></innerBoundaryIs>
+		</Polygon>
+	</Placemark>
+</Document>
+</kml>`;
+
+            processKMLData(xmlSample);
+        }
+    </script>
+</body>
+</html>
