@@ -140,9 +140,14 @@
 
                 <!-- Calculated Distances Panel -->
                 <div class="bg-indigo-950/40 border border-indigo-800/50 rounded-xl p-3 space-y-2">
-                    <h3 class="text-xs font-semibold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
-                        <i data-lucide="ruler" class="w-4 h-4 text-indigo-400"></i> Minimalabstände (Live)
-                    </h3>
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
+                            <i data-lucide="ruler" class="w-4 h-4 text-indigo-400"></i> Minimalabstände (Live)
+                        </h3>
+                        <span id="repair-status-badge" class="hidden text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                            Bereit
+                        </span>
+                    </div>
                     <div class="text-xs space-y-1.5">
                         <div class="flex justify-between items-center bg-slate-900/90 p-2 rounded border border-slate-800">
                             <span class="text-slate-400 text-[11px]">FG &rarr; CV Outer:</span>
@@ -194,7 +199,14 @@
                     <div class="pt-1 space-y-1.5">
                         <label class="flex items-center justify-between p-2 rounded-xl bg-indigo-950/40 border border-indigo-900/60 cursor-pointer hover:bg-indigo-900/30 transition">
                             <span class="text-xs font-medium text-indigo-200 flex items-center gap-2">
-                                <i data-lucide="ruler" class="w-4 h-4 text-slate-200"></i> Live-Maßbänder (Schwarz)
+                                <i data-lucide="shield-check" class="w-4 h-4 text-amber-400"></i> Auto-Repair Mindestabstände
+                            </span>
+                            <input type="checkbox" id="toggle-auto-repair" class="rounded accent-amber-500 w-4 h-4">
+                        </label>
+
+                        <label class="flex items-center justify-between p-2 rounded-xl bg-indigo-950/40 border border-indigo-900/60 cursor-pointer hover:bg-indigo-900/30 transition">
+                            <span class="text-xs font-medium text-indigo-200 flex items-center gap-2">
+                                <i data-lucide="ruler" class="w-4 h-4 text-slate-200"></i> Live-Maßbänder (Linie-zu-Linie)
                             </span>
                             <input type="checkbox" id="toggle-tape-measure" checked class="rounded accent-slate-400 w-4 h-4">
                         </label>
@@ -299,7 +311,8 @@
             history: [],
             historyIndex: -1,
             showOriginalBg: true,
-            showTapeMeasure: true
+            showTapeMeasure: true,
+            autoRepairEnabled: false
         };
 
         // Styling Config
@@ -356,88 +369,41 @@
                 renderMapReduced();
             });
 
+            document.getElementById('toggle-auto-repair').addEventListener('change', (e) => {
+                state.autoRepairEnabled = e.target.checked;
+                if (state.autoRepairEnabled) {
+                    enforceMinDistances('innerGroup');
+                    pushHistoryState();
+                    renderMapReduced(true); // Keep current view/zoom!
+                }
+            });
+
             document.getElementById('undo-btn').addEventListener('click', undo);
             document.getElementById('redo-btn').addEventListener('click', redo);
             document.getElementById('reset-btn').addEventListener('click', resetToInitialReduced);
 
-            // Metadata inputs listeners
-            ['meta-location', 'meta-speed', 'meta-altitude', 'meta-postfix'].forEach(id => {
-                document.getElementById(id).addEventListener('input', updateGeneratedNameFromInputs);
+            // Synchronize metadata input fields dynamically
+            ['location', 'speed', 'altitude', 'postfix'].forEach(field => {
+                document.getElementById(`meta-${field}`).addEventListener('input', updateGeneratedName);
             });
         };
 
-        // Geodesic distance in meters
-        function getDistanceMeters(p1, p2) {
-            const R = 6371000;
-            const dLat = (p2.lat - p1.lat) * Math.PI / 180;
-            const dLng = (p2.lng - p1.lng) * Math.PI / 180;
-            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                      Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
-                      Math.sin(dLng/2) * Math.sin(dLng/2);
-            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        }
-
-        // Point-to-Segment (Line) Shortest Connection Projection & Distance
-        function shortestProjectionToSegment(p, v, w) {
-            const l2 = (w.lat - v.lat) * (w.lat - v.lat) + (w.lng - v.lng) * (w.lng - v.lng);
-            if (l2 === 0) return { point: v, dist: getDistanceMeters(p, v) };
-            let t = ((p.lat - v.lat) * (w.lat - v.lat) + (p.lng - v.lng) * (w.lng - v.lng)) / l2;
-            t = Math.max(0, Math.min(1, t));
-            const proj = {
-                lat: v.lat + t * (w.lat - v.lat),
-                lng: v.lng + t * (w.lng - v.lng)
-            };
-            return { point: proj, dist: getDistanceMeters(p, proj) };
-        }
-
-        // Find absolute shortest connection pair between two polygons
-        function findShortestPolyConnection(polyA, polyB) {
-            if (!polyA || !polyB || polyA.length < 2 || polyB.length < 2) return null;
-            let minResult = { p1: null, p2: null, dist: Infinity };
-
-            // Check Vertices of A to Segments of B
-            for (let ptA of polyA) {
-                for (let i = 0; i < polyB.length - 1; i++) {
-                    const res = shortestProjectionToSegment(ptA, polyB[i], polyB[i + 1]);
-                    if (res.dist < minResult.dist) {
-                        minResult = { p1: ptA, p2: res.point, dist: res.dist };
-                    }
-                }
-            }
-
-            // Check Vertices of B to Segments of A
-            for (let ptB of polyB) {
-                for (let i = 0; i < polyA.length - 1; i++) {
-                    const res = shortestProjectionToSegment(ptB, polyA[i], polyA[i + 1]);
-                    if (res.dist < minResult.dist) {
-                        minResult = { p1: res.point, p2: ptB, dist: res.dist };
-                    }
-                }
-            }
-
-            return minResult;
-        }
-
-        // Filename Metadata Extraction
+        // File parsing helper for filenames (matches PowerShell script regex)
         function parseFileNameMeta(fileName) {
+            let location = '', speed = 0, altitude = 0, postfix = '';
             const baseName = fileName.replace(/\.[^/.]+$/, "");
-            let location = "";
-            let speed = 0;
-            let altitude = 0;
-            let postfix = "";
-
             const match = baseName.match(/^(.*?)_(\d+)mds_(\d+)m(?:_(.*))?$/i);
+
             if (match) {
                 const beforeSpeed = match[1];
-                speed = parseInt(match[2], 10);
-                altitude = parseInt(match[3], 10);
-                postfix = match[4] || "";
-
-                const parts = beforeSpeed.split("_");
+                speed = parseInt(match[2], 10) || 0;
+                altitude = parseInt(match[3], 10) || 0;
+                postfix = match[4] || '';
+                const parts = beforeSpeed.split('_');
                 if (parts.length >= 2) {
-                    location = parts.slice(1).join("_");
+                    location = parts.slice(1).join('_');
                 } else {
-                    location = beforeSpeed;
+                    location = parts[0];
                 }
             } else {
                 location = baseName;
@@ -446,293 +412,350 @@
             return { location, speed, altitude, postfix };
         }
 
-        function updateGeneratedNameFromInputs() {
-            state.extracted.location = document.getElementById('meta-location').value || 'location';
-            state.extracted.speed = parseInt(document.getElementById('meta-speed').value, 10) || 0;
-            state.extracted.altitude = parseInt(document.getElementById('meta-altitude').value, 10) || 0;
-            state.extracted.postfix = document.getElementById('meta-postfix').value || '';
+        function updateGeneratedName() {
+            state.extracted.location = document.getElementById('meta-location').value.trim() || 'unknown';
+            state.extracted.speed = document.getElementById('meta-speed').value || 0;
+            state.extracted.altitude = document.getElementById('meta-altitude').value || 0;
+            state.extracted.postfix = document.getElementById('meta-postfix').value.trim();
 
-            let genName = `flightarea_${state.extracted.location}_${state.extracted.speed}mds_${state.extracted.altitude}m`;
+            let name = `flightarea_${state.extracted.location}_${state.extracted.speed}mds_${state.extracted.altitude}m`;
             if (state.extracted.postfix) {
-                genName += `_${state.extracted.postfix}`;
+                name += `_${state.extracted.postfix}`;
             }
-            state.generatedName = genName;
-            document.getElementById('meta-generated-name').innerText = genName;
+            state.generatedName = name;
+            document.getElementById('meta-generated-name').innerText = name;
         }
 
-        function handleFileUpload(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            state.fileName = file.name;
-            state.extracted = parseFileNameMeta(file.name);
-
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                processKMLData(evt.target.result);
-            };
-            reader.readAsText(file);
+        // Distance & Geometry Calculations (Geodesic / Segment-to-Segment)
+        function haversineDistance(p1, p2) {
+            const R = 6371000;
+            const dLat = (p2.lat - p1.lat) * Math.PI / 180;
+            const dLng = (p2.lng - p1.lng) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
+                      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         }
 
-        function processKMLData(xmlText) {
-            document.getElementById('file-name-display').innerText = state.fileName;
-            document.getElementById('meta-location').value = state.extracted.location;
-            document.getElementById('meta-speed').value = state.extracted.speed;
-            document.getElementById('meta-altitude').value = state.extracted.altitude;
-            document.getElementById('meta-postfix').value = state.extracted.postfix;
-            updateGeneratedNameFromInputs();
+        function shortestProjectionToSegment(p, a, b) {
+            const l2 = (b.lat - a.lat) * (b.lat - a.lat) + (b.lng - a.lng) * (b.lng - a.lng);
+            if (l2 === 0) return { point: a, dist: haversineDistance(p, a) };
+            let t = ((p.lat - a.lat) * (b.lat - a.lat) + (p.lng - a.lng) * (b.lng - a.lng)) / l2;
+            t = Math.max(0, Math.min(1, t));
+            const proj = { lat: a.lat + t * (b.lat - a.lat), lng: a.lng + t * (b.lng - a.lng) };
+            return { point: proj, dist: haversineDistance(p, proj) };
+        }
 
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+        // Check if Point is inside Polygon (Ray Casting Algorithm)
+        function isPointInPolygon(point, vs) {
+            let x = point.lng, y = point.lat;
+            let inside = false;
+            for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+                let xi = vs[i].lng, yi = vs[i].lat;
+                let xj = vs[j].lng, yj = vs[j].lat;
+                let intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
 
-            const getSectionCoords = (sectionName, boundaryType) => {
-                const placemarks = xmlDoc.getElementsByTagName("Placemark");
-                for (let i = 0; i < placemarks.length; i++) {
-                    const nameNode = placemarks[i].getElementsByTagName("name")[0];
-                    if (nameNode && nameNode.textContent.trim().toLowerCase() === sectionName.toLowerCase()) {
-                        const boundaryNodes = placemarks[i].getElementsByTagName(boundaryType);
-                        if (boundaryNodes.length > 0) {
-                            const coordsNode = boundaryNodes[0].getElementsByTagName("coordinates")[0];
-                            if (coordsNode) {
-                                return parseCoordinatesStr(coordsNode.textContent, state.extracted.altitude);
-                            }
-                        }
+        // Distance between two Line Segments (Segment-to-Segment minimum distance)
+        function segmentToSegmentDistance(a1, a2, b1, b2) {
+            const r1 = shortestProjectionToSegment(a1, b1, b2);
+            const r2 = shortestProjectionToSegment(a2, b1, b2);
+            const r3 = shortestProjectionToSegment(b1, a1, a2);
+            const r4 = shortestProjectionToSegment(b2, a1, a2);
+
+            let minRes = r1;
+            if (r2.dist < minRes.dist) minRes = r2;
+            if (r3.dist < minRes.dist) minRes = { point: b1, p1: r3.point, dist: r3.dist };
+            if (r4.dist < minRes.dist) minRes = { point: b2, p1: r4.point, dist: r4.dist };
+
+            const pA = minRes.p1 || (minRes === r1 ? a1 : a2);
+            const pB = minRes.point;
+            return { p1: pA, p2: pB, dist: minRes.dist };
+        }
+
+        // Find shortest Line-to-Line Connection between two Polygons (and determine orientation sign)
+        function findShortestPolyToPolyConnection(polyInner, polyOuter) {
+            if (!polyInner || !polyOuter || polyInner.length < 2 || polyOuter.length < 2) return null;
+            let minResult = { p1: null, p2: null, dist: Infinity };
+
+            for (let i = 0; i < polyInner.length - 1; i++) {
+                for (let j = 0; j < polyOuter.length - 1; j++) {
+                    const res = segmentToSegmentDistance(polyInner[i], polyInner[i + 1], polyOuter[j], polyOuter[j + 1]);
+                    if (res.dist < minResult.dist) {
+                        minResult = res;
                     }
                 }
-                return [];
+            }
+
+            // Check if Inner Polygon has breached/crossed outside of Outer Polygon
+            const innerCenter = {
+                lat: polyInner.reduce((s, p) => s + p.lat, 0) / polyInner.length,
+                lng: polyInner.reduce((s, p) => s + p.lng, 0) / polyInner.length
             };
+            const isInside = isPointInPolygon(innerCenter, polyOuter);
 
-            state.sections.fgOuter = getSectionCoords("Flight Geography", "outerBoundaryIs");
-            state.sections.cvOuter = getSectionCoords("Contingency Volume", "outerBoundaryIs");
-            state.sections.cvInner = getSectionCoords("Contingency Volume", "innerBoundaryIs");
-            state.sections.grbOuter = getSectionCoords("Ground Risk Buffer", "outerBoundaryIs");
-            state.sections.grbInner = getSectionCoords("Ground Risk Buffer", "innerBoundaryIs");
+            if (!isInside) {
+                minResult.dist = -Math.abs(minResult.dist);
+            }
 
-            // Point Reduction Logic
-            reduceAllSections();
-
-            // Render Maps
-            renderMapOriginal();
-
-            state.history = [];
-            state.historyIndex = -1;
-            pushHistoryState();
-
-            renderMapReduced();
-            document.getElementById('export-kml-btn').disabled = false;
+            return minResult;
         }
 
-        function parseCoordinatesStr(coordsStr, targetAlt) {
-            const result = [];
-            const pairs = coordsStr.trim().split(/\s+/);
-            pairs.forEach(pair => {
-                if (!pair) return;
-                const parts = pair.split(',');
-                if (parts.length >= 2) {
-                    const lng = parseFloat(parts[0]);
-                    const lat = parseFloat(parts[1]);
-                    const alt = parts.length > 2 ? parseFloat(parts[2]) : targetAlt;
-                    if (!isNaN(lat) && !isNaN(lng)) {
-                        result.push({ lat, lng, alt });
-                    }
+        function updateTapeMeasures() {
+            // Measure FG Outer to CV Outer (Line-to-Line)
+            const conn1 = findShortestPolyToPolyConnection(state.reducedSections.fgOuter, state.reducedSections.cvOuter);
+            if (conn1 && conn1.p1 && conn1.p2) {
+                const distVal = Math.round(conn1.dist);
+                const isNegative = conn1.dist < 0;
+                const labelText = `${distVal} m`;
+
+                const elem = document.getElementById('dist-fg-cv');
+                elem.innerText = labelText;
+                elem.className = isNegative ? 'font-mono text-red-500 font-bold animate-pulse' : 'font-mono text-emerald-400 font-semibold';
+
+                if (state.showTapeMeasure) {
+                    drawTapeMeasureLine(conn1.p1, conn1.p2, labelText, isNegative);
                 }
+            }
+
+            // Measure CV Outer to GRB Outer (Line-to-Line)
+            const conn2 = findShortestPolyToPolyConnection(state.reducedSections.cvOuter, state.reducedSections.grbOuter);
+            if (conn2 && conn2.p1 && conn2.p2) {
+                const distVal = Math.round(conn2.dist);
+                const isNegative = conn2.dist < 0;
+                const labelText = `${distVal} m`;
+
+                const elem = document.getElementById('dist-cv-grb');
+                elem.innerText = labelText;
+                elem.className = isNegative ? 'font-mono text-red-500 font-bold animate-pulse' : 'font-mono text-orange-400 font-semibold';
+
+                if (state.showTapeMeasure) {
+                    drawTapeMeasureLine(conn2.p1, conn2.p2, labelText, isNegative);
+                }
+            }
+        }
+
+        function drawTapeMeasureLine(p1, p2, textLabel, isNegative) {
+            const lineColor = isNegative ? '#ef4444' : '#000000';
+            const line = L.polyline([[p1.lat, p1.lng], [p2.lat, p2.lng]], {
+                color: lineColor,
+                weight: 3,
+                dashArray: '5,5'
             });
-            return result;
+
+            const midLat = (p1.lat + p2.lat) / 2;
+            const midLng = (p1.lng + p2.lng) / 2;
+
+            const badgeBg = isNegative ? 'bg-red-600 border-red-400 text-white font-bold' : 'bg-slate-950 border-slate-700 text-white font-bold';
+
+            const labelIcon = L.divIcon({
+                className: `${badgeBg} border text-[10px] font-mono px-1.5 py-0.5 rounded shadow`,
+                html: textLabel,
+                iconSize: [50, 20],
+                iconAnchor: [25, 10]
+            });
+
+            const labelMarker = L.marker([midLat, midLng], { icon: labelIcon, interactive: false });
+
+            layerGroupTapeMeasure.addLayer(line);
+            layerGroupTapeMeasure.addLayer(labelMarker);
         }
 
-        // Visvalingam-Whyatt Simplification Algorithm (reduces to maxPoints)
-        function simplifyPolygonVisvalingam(points, maxPoints) {
-            if (!points || points.length <= maxPoints) return JSON.parse(JSON.stringify(points || []));
+        // Automatic Repair Logic enforcing minimum original distances in user-specified order
+        function setRepairStatus(status, text) {
+            const badge = document.getElementById('repair-status-badge');
+            if (!badge) return;
+            badge.classList.remove('hidden', 'bg-amber-500/20', 'text-amber-300', 'border-amber-500/40', 'bg-emerald-500/20', 'text-emerald-300', 'border-emerald-500/40', 'animate-pulse');
+            
+            if (status === 'running') {
+                badge.innerText = text || 'Repariere...';
+                badge.classList.add('bg-amber-500/20', 'text-amber-300', 'border-amber-500/40', 'animate-pulse');
+            } else if (status === 'done') {
+                badge.innerText = text || 'Abstände OK';
+                badge.classList.add('bg-emerald-500/20', 'text-emerald-300', 'border-emerald-500/40');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
 
-            let pts = JSON.parse(JSON.stringify(points));
-            const isClosed = (pts[0].lat === pts[pts.length - 1].lat && pts[0].lng === pts[pts.length - 1].lng);
-            if (isClosed) pts.pop();
+        function enforceMinDistances(movedGroup) {
+            setRepairStatus('running', 'Auto-Repair läuft...');
+            
+            const targetFG_CV = Math.max(state.calculatedDistances.fgToCvMeters, 15);
+            const targetCV_GRB = Math.max(state.calculatedDistances.cvToGrbMeters, 15);
 
-            while (pts.length > Math.max(3, maxPoints - 1)) {
+            let maxIterations = 25;
+            let iter = 0;
+
+            const adjustPolyOutwards = (innerPoly, outerPoly, targetDist) => {
+                let adjusted = false;
+                if (!innerPoly || !outerPoly || innerPoly.length < 3 || outerPoly.length < 3) return false;
+
+                const centerLat = innerPoly.reduce((s, p) => s + p.lat, 0) / innerPoly.length;
+                const centerLng = innerPoly.reduce((s, p) => s + p.lng, 0) / innerPoly.length;
+
+                for (let j = 0; j < outerPoly.length - 1; j++) {
+                    const pt = outerPoly[j];
+                    
+                    // Find closest projection to inner poly boundaries
+                    let minProjDist = Infinity;
+                    for (let i = 0; i < innerPoly.length - 1; i++) {
+                        const proj = shortestProjectionToSegment(pt, innerPoly[i], innerPoly[i + 1]);
+                        if (proj.dist < minProjDist) minProjDist = proj.dist;
+                    }
+
+                    // Check center-relative orientation
+                    const innerCenterPoint = { lat: centerLat, lng: centerLng };
+                    const isPtInside = isPointInPolygon(pt, innerPoly);
+
+                    if (minProjDist < targetDist || isPtInside) {
+                        adjusted = true;
+                        let deficit = isPtInside ? (targetDist + minProjDist) : (targetDist - minProjDist);
+                        deficit = Math.max(deficit, 2); // Minimum push step
+
+                        let dLat = pt.lat - centerLat;
+                        let dLng = pt.lng - centerLng;
+                        let len = Math.sqrt(dLat * dLat + dLng * dLng) || 0.0001;
+
+                        const shiftDeg = (deficit + 1) / 111000;
+                        pt.lat += (dLat / len) * shiftDeg;
+                        pt.lng += (dLng / len) * shiftDeg;
+                    }
+                }
+
+                if (adjusted && outerPoly.length > 2) {
+                    outerPoly[outerPoly.length - 1].lat = outerPoly[0].lat;
+                    outerPoly[outerPoly.length - 1].lng = outerPoly[0].lng;
+                }
+
+                return adjusted;
+            };
+
+            const adjustPolyInwards = (innerPoly, outerPoly, targetDist) => {
+                let adjusted = false;
+                if (!innerPoly || !outerPoly || innerPoly.length < 3 || outerPoly.length < 3) return false;
+
+                const centerLat = innerPoly.reduce((s, p) => s + p.lat, 0) / innerPoly.length;
+                const centerLng = innerPoly.reduce((s, p) => s + p.lng, 0) / innerPoly.length;
+
+                for (let i = 0; i < innerPoly.length - 1; i++) {
+                    const pt = innerPoly[i];
+
+                    let minProjDist = Infinity;
+                    for (let j = 0; j < outerPoly.length - 1; j++) {
+                        const proj = shortestProjectionToSegment(pt, outerPoly[j], outerPoly[j + 1]);
+                        if (proj.dist < minProjDist) minProjDist = proj.dist;
+                    }
+
+                    if (minProjDist < targetDist) {
+                        adjusted = true;
+                        const deficit = targetDist - minProjDist;
+                        let dLat = centerLat - pt.lat;
+                        let dLng = centerLng - pt.lng;
+                        let len = Math.sqrt(dLat * dLat + dLng * dLng) || 0.0001;
+
+                        const shiftDeg = (deficit + 1) / 111000;
+                        pt.lat += (dLat / len) * shiftDeg;
+                        pt.lng += (dLng / len) * shiftDeg;
+                    }
+                }
+
+                if (adjusted && innerPoly.length > 2) {
+                    innerPoly[innerPoly.length - 1].lat = innerPoly[0].lat;
+                    innerPoly[innerPoly.length - 1].lng = innerPoly[0].lng;
+                }
+
+                return adjusted;
+            };
+
+            // Main Iterative Resolution Loop
+            while (iter < maxIterations) {
+                let changed = false;
+
+                if (movedGroup === 'innerGroup') {
+                    changed |= adjustPolyOutwards(state.reducedSections.fgOuter, state.reducedSections.cvOuter, targetFG_CV);
+                    state.reducedSections.cvInner = JSON.parse(JSON.stringify(state.reducedSections.fgOuter));
+                    state.reducedSections.grbInner = JSON.parse(JSON.stringify(state.reducedSections.cvOuter));
+                    changed |= adjustPolyOutwards(state.reducedSections.cvOuter, state.reducedSections.grbOuter, targetCV_GRB);
+                } else if (movedGroup === 'middleGroup') {
+                    changed |= adjustPolyInwards(state.reducedSections.fgOuter, state.reducedSections.cvOuter, targetFG_CV);
+                    state.reducedSections.cvInner = JSON.parse(JSON.stringify(state.reducedSections.fgOuter));
+                    changed |= adjustPolyOutwards(state.reducedSections.cvOuter, state.reducedSections.grbOuter, targetCV_GRB);
+                    state.reducedSections.grbInner = JSON.parse(JSON.stringify(state.reducedSections.cvOuter));
+                } else if (movedGroup === 'outerGroup') {
+                    changed |= adjustPolyInwards(state.reducedSections.cvOuter, state.reducedSections.grbOuter, targetCV_GRB);
+                    state.reducedSections.grbInner = JSON.parse(JSON.stringify(state.reducedSections.cvOuter));
+                    changed |= adjustPolyInwards(state.reducedSections.fgOuter, state.reducedSections.cvOuter, targetFG_CV);
+                    state.reducedSections.cvInner = JSON.parse(JSON.stringify(state.reducedSections.fgOuter));
+                }
+
+                if (!changed) break;
+                iter++;
+            }
+
+            setTimeout(() => {
+                setRepairStatus('done', 'Mindestabstände OK');
+            }, 300);
+        }
+
+        // Polygon Simplification (Visvalingam-Whyatt algorithm to max 20 points)
+        function simplifyPolygonVisvalingam(points, maxPoints = 20) {
+            if (!points || points.length <= maxPoints) return points.map(p => ({ ...p }));
+            let pts = points.map((p, idx) => ({ ...p, id: idx }));
+            if (pts[0].lat === pts[pts.length - 1].lat && pts[0].lng === pts[pts.length - 1].lng) {
+                pts.pop();
+            }
+
+            while (pts.length > maxPoints) {
                 let minArea = Infinity;
-                let minIndex = -1;
-
+                let minIdx = -1;
                 for (let i = 0; i < pts.length; i++) {
                     const prev = pts[(i - 1 + pts.length) % pts.length];
                     const curr = pts[i];
                     const next = pts[(i + 1) % pts.length];
-
                     const area = Math.abs(
                         (prev.lng * (curr.lat - next.lat) +
                          curr.lng * (next.lat - prev.lat) +
-                         next.lng * (prev.lat - curr.lat)) / 2.0
+                         next.lng * (prev.lat - curr.lat)) / 2
                     );
-
                     if (area < minArea) {
                         minArea = area;
-                        minIndex = i;
+                        minIdx = i;
                     }
                 }
-
-                if (minIndex !== -1) {
-                    pts.splice(minIndex, 1);
+                if (minIdx !== -1) {
+                    pts.splice(minIdx, 1);
                 } else {
                     break;
                 }
             }
-
-            if (isClosed || pts.length > 0) {
-                pts.push({ ...pts[0] });
-            }
+            pts.push({ ...pts[0] });
             return pts;
         }
 
-        function contractPolygonInwards(points, factorDegrees) {
-            if (!points || points.length < 3) return points;
-            const centerLat = points.reduce((sum, p) => sum + p.lat, 0) / points.length;
-            const centerLng = points.reduce((sum, p) => sum + p.lng, 0) / points.length;
+        function contractPolygonInwards(points, factor = 0.98) {
+            const centerLat = points.reduce((s, p) => s + p.lat, 0) / points.length;
+            const centerLng = points.reduce((s, p) => s + p.lng, 0) / points.length;
 
-            return points.map(p => {
-                const dLat = centerLat - p.lat;
-                const dLng = centerLng - p.lng;
-                return {
-                    lat: p.lat + dLat * factorDegrees,
-                    lng: p.lng + dLng * factorDegrees,
-                    alt: p.alt
-                };
-            });
+            return points.map(p => ({
+                ...p,
+                lat: centerLat + (p.lat - centerLat) * factor,
+                lng: centerLng + (p.lng - centerLng) * factor
+            }));
         }
 
-        // Render Map 1 (Original Data)
-        function renderMapOriginal() {
-            layerGroupOrig.clearLayers();
-            let totalPts = 0;
-            const bounds = L.latLngBounds();
-
-            const order = ['grbOuter', 'cvOuter', 'fgOuter', 'grbInner', 'cvInner'];
-            order.forEach(key => {
-                const pts = state.sections[key];
-                if (!pts || pts.length === 0) return;
-                totalPts += pts.length;
-
-                const latLngs = pts.map(p => {
-                    bounds.extend([p.lat, p.lng]);
-                    return [p.lat, p.lng];
-                });
-
-                const poly = L.polygon(latLngs, {
-                    color: STYLES[key].color,
-                    weight: STYLES[key].weight,
-                    fillOpacity: STYLES[key].fillOpacity,
-                    dashArray: STYLES[key].dashArray || null
-                });
-                layerGroupOrig.addLayer(poly);
-            });
-
-            document.getElementById('orig-points-badge').innerText = `${totalPts} Punkte total`;
-            if (bounds.isValid()) {
-                mapOrig.fitBounds(bounds, { padding: [30, 30] });
-                mapRed.fitBounds(bounds, { padding: [30, 30] });
+        function updatePolyPoint(poly, idx, newPos) {
+            if (poly && poly[idx]) {
+                poly[idx].lat = newPos.lat;
+                poly[idx].lng = newPos.lng;
+                if (idx === 0) {
+                    poly[poly.length - 1].lat = newPos.lat;
+                    poly[poly.length - 1].lng = newPos.lng;
+                }
             }
-        }
-
-        function reduceAllSections() {
-            const redFG = simplifyPolygonVisvalingam(state.sections.fgOuter, 20);
-            const redFG_Inward = contractPolygonInwards(redFG, 0.001);
-            const redCV = simplifyPolygonVisvalingam(state.sections.cvOuter, 20);
-            const redGRB = simplifyPolygonVisvalingam(state.sections.grbOuter, 20);
-
-            state.reducedSections = {
-                fgOuter: redFG_Inward,
-                cvOuter: redCV,
-                cvInner: JSON.parse(JSON.stringify(redFG_Inward)),
-                grbOuter: redGRB,
-                grbInner: JSON.parse(JSON.stringify(redCV))
-            };
-        }
-
-        // Move Coupled Ring Vertices Simultaneously (FG Outer <-> CV Inner, CV Outer <-> GRB Inner)
-        function moveCoupledVertex(ringGroup, index, newPos) {
-            if (ringGroup === 'innerGroup') {
-                // Modifies FG Outer and CV Inner together
-                updatePolyPoint(state.reducedSections.fgOuter, index, newPos);
-                state.reducedSections.cvInner = JSON.parse(JSON.stringify(state.reducedSections.fgOuter));
-            } else if (ringGroup === 'middleGroup') {
-                // Modifies CV Outer and GRB Inner together
-                updatePolyPoint(state.reducedSections.cvOuter, index, newPos);
-                state.reducedSections.grbInner = JSON.parse(JSON.stringify(state.reducedSections.cvOuter));
-            } else if (ringGroup === 'outerGroup') {
-                // Modifies GRB Outer
-                updatePolyPoint(state.reducedSections.grbOuter, index, newPos);
-            }
-        }
-
-        function updatePolyPoint(pts, index, newPos) {
-            if (!pts || index >= pts.length) return;
-            pts[index].lat = newPos.lat;
-            pts[index].lng = newPos.lng;
-            if (index === 0 && pts.length > 2) {
-                pts[pts.length - 1].lat = newPos.lat;
-                pts[pts.length - 1].lng = newPos.lng;
-            }
-        }
-
-        function renderMapReduced() {
-            layerGroupReduced.clearLayers();
-            layerGroupBgOverlay.clearLayers();
-            layerGroupTapeMeasure.clearLayers();
-
-            let totalPts = 0;
-
-            // Background Original Silhouette
-            if (state.showOriginalBg) {
-                Object.keys(state.sections).forEach(key => {
-                    const pts = state.sections[key];
-                    if (!pts || pts.length === 0) return;
-                    const latLngs = pts.map(p => [p.lat, p.lng]);
-                    const bgPoly = L.polygon(latLngs, STYLES.bgOverlay);
-                    layerGroupBgOverlay.addLayer(bgPoly);
-                });
-            }
-
-            // Draw Reduced Polygons
-            const renderOrder = ['grbOuter', 'cvOuter', 'fgOuter', 'grbInner', 'cvInner'];
-            renderOrder.forEach(key => {
-                const pts = state.reducedSections[key];
-                if (!pts || pts.length === 0) return;
-                totalPts += pts.length;
-                const latLngs = pts.map(p => [p.lat, p.lng]);
-
-                const poly = L.polygon(latLngs, {
-                    color: STYLES[key].color,
-                    weight: STYLES[key].weight,
-                    fillOpacity: STYLES[key].fillOpacity,
-                    dashArray: STYLES[key].dashArray || null
-                });
-                layerGroupReduced.addLayer(poly);
-            });
-
-            // Interactive Coupled Drag Markers
-            // 1. Inner Coupled Ring (FG Outer & CV Inner)
-            state.reducedSections.fgOuter.forEach((pt, idx) => {
-                if (idx === state.reducedSections.fgOuter.length - 1) return; // Skip closed end-point duplicate
-                createCoupledMarker(pt, 'innerGroup', idx, '#22c55e', 'Flight Geography & Contingency Inner');
-            });
-
-            // 2. Middle Coupled Ring (CV Outer & GRB Inner)
-            state.reducedSections.cvOuter.forEach((pt, idx) => {
-                if (idx === state.reducedSections.cvOuter.length - 1) return;
-                createCoupledMarker(pt, 'middleGroup', idx, '#f97316', 'Contingency Outer & GRB Inner');
-            });
-
-            // 3. Outer Ring (GRB Outer)
-            state.reducedSections.grbOuter.forEach((pt, idx) => {
-                if (idx === state.reducedSections.grbOuter.length - 1) return;
-                createCoupledMarker(pt, 'outerGroup', idx, '#ef4444', 'Ground Risk Buffer Outer');
-            });
-
-            // Update Dynamic Live Tape Measures
-            updateTapeMeasures();
-
-            document.getElementById('reduced-points-badge').innerText = `${totalPts} Punkte total`;
-            document.getElementById('count-fg').innerText = `${state.reducedSections.fgOuter.length} Pkt`;
-            document.getElementById('count-cv').innerText = `${state.reducedSections.cvOuter.length + state.reducedSections.cvInner.length} Pkt`;
-            document.getElementById('count-grb').innerText = `${state.reducedSections.grbOuter.length + state.reducedSections.grbInner.length} Pkt`;
         }
 
         function createCoupledMarker(pt, groupName, index, color, tooltipText) {
@@ -754,11 +777,18 @@
             marker.on('drag', (e) => {
                 const newPos = e.target.getLatLng();
                 moveCoupledVertex(groupName, index, newPos);
-                // Fast Live update of polygon positions & tape measure
+
+                if (state.autoRepairEnabled) {
+                    enforceMinDistances(groupName);
+                }
+
                 renderMapReducedFast();
             });
 
             marker.on('dragend', () => {
+                if (state.autoRepairEnabled) {
+                    enforceMinDistances(groupName);
+                }
                 pushHistoryState();
                 renderMapReduced();
             });
@@ -766,86 +796,183 @@
             layerGroupReduced.addLayer(marker);
         }
 
-        // Lightweight re-render for smooth dragging
+        function moveCoupledVertex(ringGroup, index, newPos) {
+            if (ringGroup === 'innerGroup') {
+                updatePolyPoint(state.reducedSections.fgOuter, index, newPos);
+                state.reducedSections.cvInner = JSON.parse(JSON.stringify(state.reducedSections.fgOuter));
+            } else if (ringGroup === 'middleGroup') {
+                updatePolyPoint(state.reducedSections.cvOuter, index, newPos);
+                state.reducedSections.grbInner = JSON.parse(JSON.stringify(state.reducedSections.cvOuter));
+            } else if (ringGroup === 'outerGroup') {
+                updatePolyPoint(state.reducedSections.grbOuter, index, newPos);
+            }
+        }
+
         function renderMapReducedFast() {
             layerGroupTapeMeasure.clearLayers();
             updateTapeMeasures();
         }
 
-        function updateTapeMeasures() {
-            // Measure FG Outer to CV Outer
-            const conn1 = findShortestPolyConnection(state.reducedSections.fgOuter, state.reducedSections.cvOuter);
-            if (conn1 && conn1.p1 && conn1.p2) {
-                const d1 = Math.round(conn1.dist);
-                document.getElementById('dist-fg-cv').innerText = `${d1} m`;
+        function renderMapOriginal() {
+            layerGroupOrig.clearLayers();
+            const bounds = L.latLngBounds();
 
-                if (state.showTapeMeasure) {
-                    drawTapeMeasureLine(conn1.p1, conn1.p2, `${d1} m`, '#10b981');
+            Object.keys(state.sections).forEach(key => {
+                const pts = state.sections[key];
+                if (pts && pts.length > 0) {
+                    const latLngs = pts.map(p => [p.lat, p.lng]);
+                    const poly = L.polygon(latLngs, STYLES[key]);
+                    layerGroupOrig.addLayer(poly);
+                    latLngs.forEach(ll => bounds.extend(ll));
                 }
-            } else {
-                document.getElementById('dist-fg-cv').innerText = `- m`;
-            }
-
-            // Measure CV Outer to GRB Outer
-            const conn2 = findShortestPolyConnection(state.reducedSections.cvOuter, state.reducedSections.grbOuter);
-            if (conn2 && conn2.p1 && conn2.p2) {
-                const d2 = Math.round(conn2.dist);
-                document.getElementById('dist-cv-grb').innerText = `${d2} m`;
-
-                if (state.showTapeMeasure) {
-                    drawTapeMeasureLine(conn2.p1, conn2.p2, `${d2} m`, '#f97316');
-                }
-            } else {
-                document.getElementById('dist-cv-grb').innerText = `- m`;
-            }
-        }
-
-        function drawTapeMeasureLine(p1, p2, textLabel, color) {
-            const line = L.polyline([[p1.lat, p1.lng], [p2.lat, p2.lng]], {
-                color: '#000000',
-                weight: 2.5,
-                dashArray: '5,5'
             });
 
-            const midLat = (p1.lat + p2.lat) / 2;
-            const midLng = (p1.lng + p2.lng) / 2;
+            const totalCount = Object.values(state.sections).reduce((sum, arr) => sum + arr.length, 0);
+            document.getElementById('orig-points-badge').innerText = `${totalCount} Punkte total`;
 
-            const labelIcon = L.divIcon({
-                className: 'bg-slate-950 border border-slate-700 text-[10px] font-mono text-white font-bold px-1.5 py-0.5 rounded shadow',
-                html: textLabel,
-                iconSize: [45, 20],
-                iconAnchor: [22, 10]
-            });
-
-            const labelMarker = L.marker([midLat, midLng], { icon: labelIcon, interactive: false });
-
-            layerGroupTapeMeasure.addLayer(line);
-            layerGroupTapeMeasure.addLayer(labelMarker);
-        }
-
-        // Move Coupled Ring Vertices Simultaneously (FG Outer <-> CV Inner, CV Outer <-> GRB Inner)
-        function moveCoupledVertex(ringGroup, index, newPos) {
-            if (ringGroup === 'innerGroup') {
-                // Modifies FG Outer and CV Inner together for visual and export
-                updatePolyPoint(state.reducedSections.fgOuter, index, newPos);
-                state.reducedSections.cvInner = JSON.parse(JSON.stringify(state.reducedSections.fgOuter));
-            } else if (ringGroup === 'middleGroup') {
-                // Modifies CV Outer and GRB Inner together for visual and export
-                updatePolyPoint(state.reducedSections.cvOuter, index, newPos);
-                state.reducedSections.grbInner = JSON.parse(JSON.stringify(state.reducedSections.cvOuter));
-            } else if (ringGroup === 'outerGroup') {
-                // Modifies GRB Outer
-                updatePolyPoint(state.reducedSections.grbOuter, index, newPos);
+            if (bounds.isValid()) {
+                mapOrig.fitBounds(bounds, { padding: [30, 30] });
             }
         }
 
+        function renderMapReduced(skipAutoZoom = true) {
+            layerGroupReduced.clearLayers();
+            layerGroupBgOverlay.clearLayers();
+            layerGroupTapeMeasure.clearLayers();
+
+            if (state.showOriginalBg) {
+                Object.keys(state.sections).forEach(key => {
+                    const pts = state.sections[key];
+                    if (pts && pts.length > 0) {
+                        const poly = L.polygon(pts.map(p => [p.lat, p.lng]), STYLES.bgOverlay);
+                        layerGroupBgOverlay.addLayer(poly);
+                    }
+                });
+            }
+
+            const rSecs = state.reducedSections;
+
+            if (rSecs.fgOuter.length > 0) {
+                const polyFG = L.polygon(rSecs.fgOuter.map(p => [p.lat, p.lng]), STYLES.fgOuter);
+                layerGroupReduced.addLayer(polyFG);
+            }
+            if (rSecs.cvOuter.length > 0) {
+                const polyCV = L.polygon(rSecs.cvOuter.map(p => [p.lat, p.lng]), STYLES.cvOuter);
+                layerGroupReduced.addLayer(polyCV);
+            }
+            if (rSecs.grbOuter.length > 0) {
+                const polyGRB = L.polygon(rSecs.grbOuter.map(p => [p.lat, p.lng]), STYLES.grbOuter);
+                layerGroupReduced.addLayer(polyGRB);
+            }
+
+            // Coupled markers creation
+            rSecs.fgOuter.forEach((pt, i) => {
+                if (i < rSecs.fgOuter.length - 1) {
+                    createCoupledMarker(pt, 'innerGroup', i, '#22c55e', 'Flight Geo / CV Inner');
+                }
+            });
+            rSecs.cvOuter.forEach((pt, i) => {
+                if (i < rSecs.cvOuter.length - 1) {
+                    createCoupledMarker(pt, 'middleGroup', i, '#f97316', 'CV Outer / GRB Inner');
+                }
+            });
+            rSecs.grbOuter.forEach((pt, i) => {
+                if (i < rSecs.grbOuter.length - 1) {
+                    createCoupledMarker(pt, 'outerGroup', i, '#ef4444', 'GRB Outer');
+                }
+            });
+
+            document.getElementById('count-fg').innerText = `${rSecs.fgOuter.length} Pkt`;
+            document.getElementById('count-cv').innerText = `${rSecs.cvOuter.length} Pkt`;
+            document.getElementById('count-grb').innerText = `${rSecs.grbOuter.length} Pkt`;
+
+            const totalRed = rSecs.fgOuter.length + rSecs.cvOuter.length + rSecs.grbOuter.length;
+            document.getElementById('reduced-points-badge').innerText = `${totalRed} Punkte total`;
+
+            updateTapeMeasures();
+
+            // Fit bounds ONLY when explicitly requested (e.g., initial file upload)
+            if (skipAutoZoom === false) {
+                const bounds = L.latLngBounds();
+                Object.values(rSecs).forEach(arr => arr.forEach(p => bounds.extend([p.lat, p.lng])));
+                if (bounds.isValid()) {
+                    mapRed.fitBounds(bounds, { padding: [30, 30] });
+                }
+            }
+
+            document.getElementById('export-kml-btn').disabled = false;
+        }
+
+        function reduceAllSections() {
+            state.reducedSections.fgOuter = contractPolygonInwards(simplifyPolygonVisvalingam(state.sections.fgOuter, 20), 0.98);
+            state.reducedSections.cvInner = JSON.parse(JSON.stringify(state.reducedSections.fgOuter));
+
+            state.reducedSections.cvOuter = simplifyPolygonVisvalingam(state.sections.cvOuter, 20);
+            state.reducedSections.grbInner = JSON.parse(JSON.stringify(state.reducedSections.cvOuter));
+
+            state.reducedSections.grbOuter = simplifyPolygonVisvalingam(state.sections.grbOuter, 20);
+
+            const conn1 = findShortestPolyToPolyConnection(state.sections.fgOuter, state.sections.cvOuter);
+            state.calculatedDistances.fgToCvMeters = conn1 ? Math.round(conn1.dist) : 0;
+
+            const conn2 = findShortestPolyToPolyConnection(state.sections.cvOuter, state.sections.grbOuter);
+            state.calculatedDistances.cvToGrbMeters = conn2 ? Math.round(conn2.dist) : 0;
+        }
+
+        // Parsing KML String Content
+        function parseKMLString(kmlText) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(kmlText, "text/xml");
+
+            const getCoordsForPlacemark = (placemarkName, boundaryType) => {
+                const placemarks = Array.from(xmlDoc.getElementsByTagName("Placemark"));
+                const pm = placemarks.find(p => {
+                    const nameNode = p.getElementsByTagName("name")[0];
+                    return nameNode && nameNode.textContent.trim().toLowerCase() === placemarkName.toLowerCase();
+                });
+
+                if (!pm) return [];
+
+                const boundary = pm.getElementsByTagName(boundaryType)[0];
+                if (!boundary) return [];
+
+                const coordsNode = boundary.getElementsByTagName("coordinates")[0];
+                if (!coordsNode) return [];
+
+                const text = coordsNode.textContent.trim();
+                const points = [];
+                const pairs = text.split(/\s+/);
+
+                pairs.forEach(pair => {
+                    if (!pair) return;
+                    const parts = pair.split(',');
+                    if (parts.length >= 2) {
+                        const lng = parseFloat(parts[0]);
+                        const lat = parseFloat(parts[1]);
+                        const alt = parts.length >= 3 ? parseFloat(parts[2]) : state.extracted.altitude;
+                        if (!isNaN(lat) && !isNaN(lng)) {
+                            points.push({ lat, lng, alt });
+                        }
+                    }
+                });
+
+                return points;
+            };
+
+            state.sections.fgOuter = getCoordsForPlacemark("Flight Geography", "outerBoundaryIs");
+            state.sections.cvOuter = getCoordsForPlacemark("Contingency Volume", "outerBoundaryIs");
+            state.sections.cvInner = getCoordsForPlacemark("Contingency Volume", "innerBoundaryIs");
+            state.sections.grbOuter = getCoordsForPlacemark("Ground Risk Buffer", "outerBoundaryIs");
+            state.sections.grbInner = getCoordsForPlacemark("Ground Risk Buffer", "innerBoundaryIs");
+        }
+
+        // History Management
         function pushHistoryState() {
-            // Trim history if we are in the middle of undo stack
             if (state.historyIndex < state.history.length - 1) {
                 state.history = state.history.slice(0, state.historyIndex + 1);
             }
             state.history.push(JSON.stringify(state.reducedSections));
-            state.historyIndex = state.history.length - 1;
+            state.historyIndex++;
             updateHistoryButtons();
         }
 
@@ -853,7 +980,7 @@
             if (state.historyIndex > 0) {
                 state.historyIndex--;
                 state.reducedSections = JSON.parse(state.history[state.historyIndex]);
-                renderMapReduced();
+                renderMapReduced(true);
                 updateHistoryButtons();
             }
         }
@@ -862,9 +989,44 @@
             if (state.historyIndex < state.history.length - 1) {
                 state.historyIndex++;
                 state.reducedSections = JSON.parse(state.history[state.historyIndex]);
-                renderMapReduced();
+                renderMapReduced(true);
                 updateHistoryButtons();
             }
+        }
+
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            state.fileName = file.name;
+            state.extracted = parseFileNameMeta(file.name);
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                processKMLData(event.target.result);
+            };
+            reader.readAsText(file);
+        }
+
+        function processKMLData(kmlText) {
+            document.getElementById('file-name-display').innerText = state.fileName || 'KML File';
+            document.getElementById('meta-location').value = state.extracted.location;
+            document.getElementById('meta-speed').value = state.extracted.speed;
+            document.getElementById('meta-altitude').value = state.extracted.altitude;
+            document.getElementById('meta-postfix').value = state.extracted.postfix;
+            updateGeneratedName();
+
+            parseKMLString(kmlText);
+            renderMapOriginal();
+            reduceAllSections();
+
+            // Always run auto-repair 1x immediately upon initial loading/reduction
+            enforceMinDistances('innerGroup');
+
+            state.history = [];
+            state.historyIndex = -1;
+            pushHistoryState();
+            renderMapReduced(false); // Zoom to fit ONLY on initial load
         }
 
         function resetToInitialReduced() {
