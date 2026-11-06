@@ -1,0 +1,773 @@
+Hier ist der vollständige und korrigierte Code für Ihre Web-Anwendung als eigenständige `index.html`-Datei. Speichern Sie diesen Code einfach als `index.html` ab und öffnen Sie ihn in einem beliebigen Browser.
+
+```html
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KML Flight Area Converter & Editor</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        .map-container { height: calc(100vh - 12rem); min-height: 400px; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900 font-sans antialiased h-screen flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-indigo-600 text-white shadow px-6 py-4 flex justify-between items-center shrink-0">
+        <h1 class="text-xl font-bold">KML Flight Area Converter & Editor</h1>
+        <div class="flex items-center space-x-3">
+            <button onclick="loadSampleData()" class="bg-indigo-700 hover:bg-indigo-800 text-sm px-3 py-1.5 rounded transition">Beispieldatei laden</button>
+            <label class="bg-white text-indigo-700 hover:bg-indigo-50 font-medium text-sm px-4 py-2 rounded cursor-pointer shadow transition">
+                KML-Datei hochladen
+                <input type="file" id="kmlFileInput" accept=".kml" class="hidden" onchange="handleFileUpload(event)">
+            </label>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
+        
+        <!-- Sidebar / Control Panel -->
+        <aside class="w-full md:w-80 bg-white border-r border-gray-200 flex flex-col overflow-y-auto shrink-0 p-4 space-y-4">
+            <div>
+                <h2 class="text-md font-semibold text-gray-800 mb-2">Datei-Metadaten</h2>
+                <div id="metaInfo" class="bg-gray-50 p-3 rounded text-sm space-y-1 text-gray-700 border border-gray-200">
+                    <p class="text-gray-500 italic">Keine Datei geladen.</p>
+                </div>
+            </div>
+
+            <hr class="border-gray-200">
+
+            <!-- Tools & Toggles -->
+            <div class="space-y-3">
+                <h2 class="text-md font-semibold text-gray-800">Werkzeuge & Optionen</h2>
+                
+                <label class="flex items-center space-x-2 text-sm cursor-pointer">
+                    <input type="checkbox" id="toggleTapeMeasure" checked onchange="toggleTapeMeasureUI()" class="rounded text-indigo-600 focus:ring-indigo-500">
+                    <span>Dynamische Live-Maßbänder anzeigen</span>
+                </label>
+
+                <label class="flex items-center space-x-2 text-sm cursor-pointer">
+                    <input type="checkbox" id="toggleAutoRepair" onchange="toggleAutoRepairMode()" class="rounded text-indigo-600 focus:ring-indigo-500">
+                    <span>Auto-Repair Mindestabstände (Iterativ)</span>
+                </label>
+
+                <div class="flex space-x-2 pt-1">
+                    <button onclick="undo()" id="undoBtn" disabled class="flex-1 bg-gray-200 text-gray-700 text-xs py-1.5 rounded disabled:opacity-50 transition">Rückgängig</button>
+                    <button onclick="redo()" id="redoBtn" disabled class="flex-1 bg-gray-200 text-gray-700 text-xs py-1.5 rounded disabled:opacity-50 transition">Wiederholen</button>
+                    <button onclick="resetToInitialReduced()" class="flex-1 bg-gray-200 text-gray-700 text-xs py-1.5 rounded hover:bg-gray-300 transition">Reset</button>
+                </div>
+            </div>
+
+            <hr class="border-gray-200">
+
+            <!-- Live Distance & Status Panel -->
+            <div>
+                <h2 class="text-md font-semibold text-gray-800 mb-1">Minimalabstände (Live & Soll)</h2>
+                <div id="distanceStatus" class="bg-gray-50 p-3 rounded text-xs space-y-2 border border-gray-200">
+                    <p class="text-gray-500 italic">Warte auf Daten...</p>
+                </div>
+                <div id="repairStatusBadge" class="mt-2 text-center text-xs py-1 px-2 rounded font-medium bg-gray-100 text-gray-600">
+                    Status: Inaktiv
+                </div>
+                <button id="stopRepairBtn" onclick="stopAutoRepair()" class="hidden w-full mt-1 bg-red-600 hover:bg-red-700 text-white text-xs py-1 rounded transition">Auto-Repair Stoppen</button>
+            </div>
+
+            <div class="pt-4 mt-auto">
+                <button onclick="exportKMLFile()" id="exportBtn" disabled class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded shadow disabled:opacity-50 transition text-sm">
+                    Angepasste KML herunterladen
+                </button>
+            </div>
+        </aside>
+
+        <!-- Maps Section (Side by Side) -->
+        <main class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 overflow-hidden bg-gray-100">
+            <!-- Map 1: Original -->
+            <div class="bg-white rounded-lg shadow flex flex-col overflow-hidden border border-gray-200">
+                <div class="bg-gray-50 px-4 py-2 border-b border-gray-200 font-semibold text-sm text-gray-700 flex justify-between items-center">
+                    <span>1. Original-Karte (Referenz)</span>
+                    <span class="text-xs font-normal text-blue-600 bg-blue-50 px-2 py-0.5 rounded">Blau-Töne</span>
+                </div>
+                <div id="mapOriginal" class="flex-1 map-container z-0"></div>
+            </div>
+
+            <!-- Map 2: Reduced & Interactive -->
+            <div class="bg-white rounded-lg shadow flex flex-col overflow-hidden border border-gray-200">
+                <div class="bg-gray-50 px-4 py-2 border-b border-gray-200 font-semibold text-sm text-gray-700 flex justify-between items-center">
+                    <span>2. Reduzierte & Interaktive Punkte (Drag & Drop)</span>
+                    <div class="space-x-1 text-xs">
+                        <span class="text-green-700 bg-green-50 px-1.5 py-0.5 rounded">FG</span>
+                        <span class="text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded">CV</span>
+                        <span class="text-red-700 bg-red-50 px-1.5 py-0.5 rounded">GRB</span>
+                    </div>
+                </div>
+                <div id="mapReduced" class="flex-1 map-container z-0"></div>
+            </div>
+        </main>
+
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        let mapOrig, mapRed;
+        let state = {
+            fileName: "",
+            meta: { location: "Location", speed: "20", altitude: "120", postfix: "" },
+            sourceContent: "",
+            sectionsOriginal: {}, // Unveränderliche Deep Copy für blaue Originalanzeige
+            sectionsReduced: {},  // Interaktive reduzierte Polygone
+            calculatedDistances: { fgToCvOriginal: 0, cvToGrbOriginal: 0 },
+            history: [],
+            historyIndex: -1,
+            isRepairing: false
+        };
+
+        // Initialize Leaflet Maps
+        function initMaps() {
+            mapOrig = L.map('mapOriginal').setView([51.1657, 10.4515], 6);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(mapOrig);
+
+            mapRed = L.map('mapReduced').setView([51.1657, 10.4515], 6);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(mapRed);
+        }
+
+        window.onload = initMaps;
+
+        // Load Sample Data for quick test
+        function loadSampleData() {
+            const sampleKML = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+    <name>20260606_TestLocation_20mds_120m_demo.kml</name>
+    <Placemark>
+        <name>Flight Geography</name>
+        <Polygon><outerBoundaryIs><LinearRing><coordinates>
+            13.400,52.520,0 13.410,52.520,0 13.410,52.530,0 13.400,52.530,0 13.400,52.520,0
+        </coordinates></LinearRing></outerBoundaryIs></Polygon>
+    </Placemark>
+    <Placemark>
+        <name>Contingency Volume</name>
+        <Polygon>
+            <outerBoundaryIs><LinearRing><coordinates>
+                13.395,52.515,0 13.415,52.515,0 13.415,52.535,0 13.395,52.535,0 13.395,52.515,0
+            </coordinates></LinearRing></outerBoundaryIs>
+            <innerBoundaryIs><LinearRing><coordinates>
+                13.400,52.520,0 13.410,52.520,0 13.410,52.530,0 13.400,52.530,0 13.400,52.520,0
+            </coordinates></LinearRing></innerBoundaryIs>
+        </Polygon>
+    </Placemark>
+    <Placemark>
+        <name>Ground Risk Buffer</name>
+        <Polygon>
+            <outerBoundaryIs><LinearRing><coordinates>
+                13.390,52.510,0 13.420,52.510,0 13.420,52.540,0 13.390,52.540,0 13.390,52.510,0
+            </coordinates></LinearRing></outerBoundaryIs>
+            <innerBoundaryIs><LinearRing><coordinates>
+                13.395,52.515,0 13.415,52.515,0 13.415,52.535,0 13.395,52.535,0 13.395,52.515,0
+            </coordinates></LinearRing></innerBoundaryIs>
+        </Polygon>
+    </Placemark>
+</Document>
+</kml>`;
+            parseKMLString(sampleKML, "20260606_TestLocation_20mds_120m_demo.kml");
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                parseKMLString(e.target.result, file.name);
+            };
+            reader.readAsText(file);
+        }
+
+        // Parse Filename & KML Content
+        function parseKMLString(content, filename) {
+            state.fileName = filename;
+            state.sourceContent = content;
+
+            // Extract Meta from filename: DATE_LOCATION_20mds_120m_POSTFIX
+            const baseName = filename.replace(/\.[^/.]+$/, "");
+            const match = baseName.match(/^(.*?)_(\d+)mds_(\d+)m(?:_(.*))?$/i);
+            
+            if (match) {
+                const beforeSpeed = match[1];
+                state.meta.speed = match[2];
+                state.meta.altitude = match[3];
+                state.meta.postfix = match[4] || "";
+                const parts = beforeSpeed.split("_");
+                if (parts.length >= 2) state.meta.location = parts.slice(1).join("_");
+                else state.meta.location = beforeSpeed;
+            } else {
+                state.meta.location = baseName;
+            }
+
+            // Extract coordinate boundaries
+            try {
+                const getCoords = (secName, boundaryType) => {
+                    const regex = new RegExp(`<name>\\s*${secName}\\s*<\/name>[\\s\\S]*?<${boundaryType}>[\\s\\S]*?<coordinates>([\\s\\S]*?)<\/coordinates>`, 'i');
+                    const m = content.match(regex);
+                    if (!m) return [];
+                    return parseCoordStringToPoints(m[1].trim());
+                };
+
+                const rawSections = {
+                    "FG Outer": getCoords("Flight Geography", "outerBoundaryIs"),
+                    "CV Outer": getCoords("Contingency Volume", "outerBoundaryIs"),
+                    "CV Inner": getCoords("Contingency Volume", "innerBoundaryIs"),
+                    "GRB Outer": getCoords("Ground Risk Buffer", "outerBoundaryIs"),
+                    "GRB Inner": getCoords("Ground Risk Buffer", "innerBoundaryIs")
+                };
+
+                // Store immutable original deep copy
+                state.sectionsOriginal = JSON.parse(JSON.stringify(rawSections));
+
+                // Calculate original min distances
+                state.calculatedDistances.fgToCvOriginal = Math.round(calculateMinSegmentDistance(rawSections["FG Outer"], rawSections["CV Outer"]));
+                state.calculatedDistances.cvToGrbOriginal = Math.round(calculateMinSegmentDistance(rawSections["CV Outer"], rawSections["GRB Outer"]));
+
+                // Create initial reduced sections (max 20 points, preserving inner/outer coupling)
+                state.sectionsReduced = {};
+                for (let key in rawSections) {
+                    state.sectionsReduced[key] = simplifyPolygon(rawSections[key], 20);
+                }
+
+                // Sync coupled inner boundaries
+                state.sectionsReduced["CV Inner"] = JSON.parse(JSON.stringify(state.sectionsReduced["FG Outer"]));
+                state.sectionsReduced["GRB Inner"] = JSON.parse(JSON.stringify(state.sectionsReduced["CV Outer"]));
+
+                updateMetaUI();
+                renderMapOriginal();
+                renderMapReduced(false);
+                pushHistoryState();
+
+                document.getElementById('exportBtn').disabled = false;
+            } catch (err) {
+                alert("Fehler beim Parsen der KML-Datei: " + err.message);
+            }
+        }
+
+        function parseCoordStringToPoints(coordStr) {
+            const points = [];
+            const pairs = coordStr.split(/\s+/);
+            for (let p of pairs) {
+                if (!p.trim()) continue;
+                const parts = p.split(',');
+                if (parts.length >= 2) {
+                    points.push({ x: parseFloat(parts[0]), y: parseFloat(parts[1]) });
+                }
+            }
+            return points;
+        }
+
+        // Simplify polygon to max N points
+        function simplifyPolygon(points, maxPoints) {
+            if (points.length <= maxPoints) return JSON.parse(JSON.stringify(points));
+            const step = Math.ceil(points.length / maxPoints);
+            const simplified = [];
+            for (let i = 0; i < points.length; i += step) {
+                simplified.push({ ...points[i] });
+            }
+            // Ensure closure
+            if (simplified.length > 0 && (simplified[0].x !== simplified[simplified.length-1].x || simplified[0].y !== simplified[simplified.length-1].y)) {
+                simplified.push({ ...simplified[0] });
+            }
+            return simplified;
+        }
+
+        // Distance helpers (approximate meters)
+        function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
+            const R = 6371000;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        function calculateMinSegmentDistance(polyA, polyB) {
+            let minDist = Infinity;
+            for (let i = 0; i < polyA.length - 1; i++) {
+                for (let j = 0; j < polyB.length - 1; j++) {
+                    const d = getDistanceFromLatLonInM(polyA[i].y, polyA[i].x, polyB[j].y, polyB[j].x);
+                    if (d < minDist) minDist = d;
+                }
+            }
+            return minDist === Infinity ? 0 : minDist;
+        }
+
+        function findMinDistanceConnection(polyA, polyB) {
+            let minDist = Infinity;
+            let bestA = null, bestB = null;
+            for (let i = 0; i < polyA.length - 1; i++) {
+                for (let j = 0; j < polyB.length - 1; j++) {
+                    const d = getDistanceFromLatLonInM(polyA[i].y, polyA[i].x, polyB[j].y, polyB[j].x);
+                    if (d < minDist) {
+                        minDist = d;
+                        bestA = polyA[i];
+                        bestB = polyB[j];
+                    }
+                }
+            }
+            return { dist: minDist, pA: bestA, pB: bestB };
+        }
+
+        // Check if polygon A is fully enclosed inside polygon B (Ray casting method)
+        function isEnclosed(innerPoly, outerPoly) {
+            // Check if every point of innerPoly is inside outerPoly
+            for (let pt of innerPoly) {
+                if (!isPointInPolygon(pt, outerPoly)) return false;
+            }
+            return true;
+        }
+
+        function isPointInPolygon(pt, poly) {
+            let x = pt.x, y = pt.y;
+            let inside = false;
+            for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+                let xi = poly[i].x, yi = poly[i].y;
+                let xj = poly[j].x, yj = poly[j].y;
+                let intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+
+        // UI Updates
+        function updateMetaUI() {
+            document.getElementById('metaInfo').innerHTML = `
+                <p><strong>Datei:</strong> ${state.fileName}</p>
+                <p><strong>Location:</strong> ${state.meta.location}</p>
+                <p><strong>Geschwindigkeit:</strong> ${state.meta.speed} m/s</p>
+                <p><strong>Höhe:</strong> ${state.meta.altitude} m</p>
+                <p><strong>Postfix:</strong> ${state.meta.postfix || '&lt;keiner&gt;'}</p>
+            `;
+        }
+
+        // Render Map 1: Original (Blue tones, immutable)
+        let origLayerGroup = L.layerGroup();
+        function renderMapOriginal() {
+            origLayerGroup.clearLayers();
+            const styles = {
+                "FG Outer": { color: "#1e3a8a", weight: 3, fillOpacity: 0.1 },
+                "CV Outer": { color: "#2563eb", weight: 3, fillOpacity: 0.1 },
+                "GRB Outer": { color: "#60a5fa", weight: 3, fillOpacity: 0.1 }
+            };
+
+            const allPts = [];
+            for (let key of ["GRB Outer", "CV Outer", "FG Outer"]) {
+                if (state.sectionsOriginal[key]) {
+                    const latLngs = state.sectionsOriginal[key].map(p => [p.y, p.x]);
+                    latLngs.forEach(pt => allPts.push(pt));
+                    L.polygon(latLngs, styles[key]).addTo(origLayerGroup);
+                }
+            }
+            origLayerGroup.addTo(mapOrig);
+            if (allPts.length > 0) {
+                mapOrig.fitBounds(L.latLngBounds(allPts), { padding: [20, 20] });
+            }
+        }
+
+        // Render Map 2: Reduced & Interactive (Drag & Drop, Tape Measure, Colors)
+        let redLayerGroup = L.layerGroup();
+        let tapeMeasureGroup = L.layerGroup();
+
+        function renderMapReduced(keepView = false) {
+            redLayerGroup.clearLayers();
+            tapeMeasureGroup.clearLayers();
+
+            const sec = state.sectionsReduced;
+            const styles = {
+                "FG Outer": { color: "#22c55e", weight: 4, fillColor: "#22c55e", fillOpacity: 0.15 },
+                "CV Outer": { color: "#f97316", weight: 4, fillColor: "#f97316", fillOpacity: 0.15 },
+                "GRB Outer": { color: "#ef4444", weight: 4, fillColor: "#ef4444", fillOpacity: 0.15 }
+            };
+
+            const allPts = [];
+
+            // Draw background reference original silhouette in blue
+            for (let key of ["GRB Outer", "CV Outer", "FG Outer"]) {
+                if (state.sectionsOriginal[key]) {
+                    const origLatLngs = state.sectionsOriginal[key].map(p => [p.y, p.x]);
+                    L.polygon(origLatLngs, { color: '#93c5fd', weight: 1.5, dashArray: '4,4', fillOpacity: 0.03 }).addTo(redLayerGroup);
+                }
+            }
+
+            // Draw active reduced polygons
+            const activeKeys = ["GRB Outer", "CV Outer", "FG Outer"];
+            for (let key of activeKeys) {
+                if (!sec[key]) continue;
+                const latLngs = sec[key].map(p => [p.y, p.x]);
+                latLngs.forEach(pt => allPts.push(pt));
+                
+                L.polygon(latLngs, styles[key]).addTo(redLayerGroup);
+
+                // Add draggable markers for points
+                sec[key].forEach((pt, index) => {
+                    const marker = L.circleMarker([pt.y, pt.x], {
+                        radius: 6,
+                        color: styles[key].color,
+                        fillColor: "#ffffff",
+                        fillOpacity: 1,
+                        weight: 2
+                    }).addTo(redLayerGroup);
+
+                    marker.on('mousedown', () => { activeDraggingKey = key; activeDraggingIndex = index; });
+                    
+                    marker.dragging = new L.Draggable(marker._element);
+                    
+                    // Smooth real-time update during drag
+                    let dragHandler = (e) => {
+                        const newLatLng = marker.getLatLng();
+                        pt.x = newLatLng.lng;
+                        pt.y = newLatLng.lat;
+
+                        // Sync coupled points
+                        if (key === "FG Outer") {
+                            if (sec["CV Inner"] && sec["CV Inner"][index]) {
+                                sec["CV Inner"][index].x = pt.x;
+                                sec["CV Inner"][index].y = pt.y;
+                            }
+                        } else if (key === "CV Outer") {
+                            if (sec["GRB Inner"] && sec["GRB Inner"][index]) {
+                                sec["GRB Inner"][index].x = pt.x;
+                                sec["GRB Inner"][index].y = pt.y;
+                            }
+                        }
+
+                        // Re-render polygons instantly without recreating markers during drag
+                        updatePolygonsGeometryOnly();
+                    };
+
+                    marker.on('drag', dragHandler);
+                    marker.on('dragend', () => {
+                        pushHistoryState();
+                        renderMapReduced(true);
+                    });
+                });
+            }
+
+            redLayerGroup.addTo(mapRed);
+            if (!keepView && allPts.length > 0) {
+                mapRed.fitBounds(L.latLngBounds(allPts), { padding: [20, 20] });
+            }
+
+            updateLiveDistancesAndTapeMeasure();
+        }
+
+        let activeDraggingKey = null;
+        let activeDraggingIndex = null;
+
+        function updatePolygonsGeometryOnly() {
+            // Fast redraw of polygon shapes during dragging
+            redLayerGroup.clearLayers();
+            const sec = state.sectionsReduced;
+            const styles = {
+                "FG Outer": { color: "#22c55e", weight: 4, fillOpacity: 0.15 },
+                "CV Outer": { color: "#f97316", weight: 4, fillOpacity: 0.15 },
+                "GRB Outer": { color: "#ef4444", weight: 4, fillOpacity: 0.15 }
+            };
+            for (let key of ["GRB Outer", "CV Outer", "FG Outer"]) {
+                if (sec[key]) {
+                    L.polygon(sec[key].map(p => [p.y, p.x]), styles[key]).addTo(redLayerGroup);
+                }
+            }
+        }
+
+        // Live Distance & Tape Measure calculations
+        function updateLiveDistancesAndTapeMeasure() {
+            const sec = state.sectionsReduced;
+            const targetFG = state.calculatedDistances.fgToCvOriginal;
+            const targetGRB = state.calculatedDistances.cvToGrbOriginal;
+
+            const connFG = findMinDistanceConnection(sec["FG Outer"], sec["CV Outer"]);
+            const connGRB = findMinDistanceConnection(sec["CV Outer"], sec["GRB Outer"]);
+
+            const fgEnclosed = isEnclosed(sec["FG Outer"], sec["CV Outer"]);
+            const grbEnclosed = isEnclosed(sec["CV Outer"], sec["GRB Outer"]);
+
+            const fgDistVal = fgEnclosed ? Math.round(connFG.dist) : -Math.round(connFG.dist);
+            const grbDistVal = grbEnclosed ? Math.round(connGRB.dist) : -Math.round(connGRB.dist);
+
+            const fgOk = fgEnclosed && fgDistVal >= targetFG;
+            const grbOk = grbEnclosed && grbDistVal >= targetGRB;
+
+            // Update Status Panel
+            document.getElementById('distanceStatus').innerHTML = `
+                <div>
+                    <span class="font-semibold text-gray-700">FG → CV Outer</span><br>
+                    Soll: ${targetFG} m | Live: <span class="${fgDistVal < targetFG ? 'text-red-600 font-bold' : 'text-green-600 font-bold'}">${fgDistVal} m</span>
+                </div>
+                <div>
+                    <span class="font-semibold text-gray-700">CV Outer → GRB Outer</span><br>
+                    Soll: ${targetGRB} m | Live: <span class="${grbDistVal < targetGRB ? 'text-red-600 font-bold' : 'text-green-600 font-bold'}">${grbDistVal} m</span>
+                </div>
+            `;
+
+            const badge = document.getElementById('repairStatusBadge');
+            if (fgOk && grbOk) {
+                badge.className = "mt-2 text-center text-xs py-1 px-2 rounded font-medium bg-green-100 text-green-700";
+                badge.innerText = "Status: Mindestabstände OK";
+            } else {
+                badge.className = "mt-2 text-center text-xs py-1 px-2 rounded font-medium bg-red-100 text-red-700";
+                badge.innerText = "Status: Mindestabstände unterschritten / Invers";
+            }
+
+            // Tape Measures on Map
+            if (document.getElementById('toggleTapeMeasure').checked) {
+                if (connFG.pA && connFG.pB) {
+                    const color = fgOk ? '#000000' : '#ef4444';
+                    L.polyline([[connFG.pA.y, connFG.pA.x], [connFG.pB.y, connFG.pB.x]], {
+                        color: color,
+                        weight: 2,
+                        dashArray: '5,5'
+                    }).addTo(tapeMeasureGroup);
+                }
+                if (connGRB.pA && connGRB.pB) {
+                    const color = grbOk ? '#000000' : '#ef4444';
+                    L.polyline([[connGRB.pA.y, connGRB.pA.x], [connGRB.pB.y, connGRB.pB.x]], {
+                        color: color,
+                        weight: 2,
+                        dashArray: '5,5'
+                    }).addTo(tapeMeasureGroup);
+                }
+                tapeMeasureGroup.addTo(mapRed);
+            }
+
+            // If auto-repair mode is active and distances are not OK, run iteration step
+            if (state.autoRepairActive && (!fgOk || !grbOk) && state.isRepairing) {
+                runAutoRepairStep(targetFG, targetGRB);
+            } else if (state.autoRepairActive && fgOk && grbOk && state.isRepairing) {
+                stopAutoRepair();
+            }
+        }
+
+        function toggleTapeMeasureUI() {
+            renderMapReduced(true);
+        }
+
+        // Auto-Repair Logic (Iterative & Controlled)
+        function toggleAutoRepairMode() {
+            const active = document.getElementById('toggleAutoRepair').checked;
+            state.autoRepairActive = active;
+            if (active) {
+                state.isRepairing = true;
+                document.getElementById('stopRepairBtn').classList.remove('hidden');
+                runAutoRepairLoop();
+            } else {
+                stopAutoRepair();
+            }
+        }
+
+        function stopAutoRepair() {
+            state.isRepairing = false;
+            state.autoRepairActive = false;
+            const toggle = document.getElementById('toggleAutoRepair');
+            if (toggle) toggle.checked = false;
+            document.getElementById('stopRepairBtn').classList.add('hidden');
+        }
+
+        async function runAutoRepairLoop() {
+            const targetFG = state.calculatedDistances.fgToCvOriginal;
+            const targetGRB = state.calculatedDistances.cvToGrbOriginal;
+
+            while (state.isRepairing) {
+                let changed = runAutoRepairStep(targetFG, targetGRB);
+                renderMapReduced(true);
+                await new Promise(r => setTimeout(r, 100)); // smooth async step
+                if (!changed) break;
+            }
+            stopAutoRepair();
+        }
+
+        function runAutoRepairStep(targetFG, targetGRB) {
+            let changed = false;
+            const sec = state.sectionsReduced;
+            
+            // Check FG to CV Outer
+            const connFG = findMinDistanceConnection(sec["FG Outer"], sec["CV Outer"]);
+            const fgEnclosed = isEnclosed(sec["FG Outer"], sec["CV Outer"]);
+            if (!fgEnclosed || connFG.dist < targetFG) {
+                // Push CV Outer outwards
+                const cx = sec["CV Outer"].reduce((acc, p) => acc + p.x, 0) / sec["CV Outer"].length;
+                const cy = sec["CV Outer"].reduce((acc, p) => acc + p.y, 0) / sec["CV Outer"].length;
+                
+                sec["CV Outer"].forEach((pt, idx) => {
+                    const dx = pt.x - cx;
+                    const dy = pt.y - cy;
+                    const len = Math.sqrt(dx*dx + dy*dy);
+                    if (len > 0) {
+                        pt.x += (dx / len) * 0.00005;
+                        pt.y += (dy / len) * 0.00005;
+                    }
+                });
+                // sync GRB Inner
+                sec["GRB Inner"] = JSON.parse(JSON.stringify(sec["CV Outer"]));
+                changed = true;
+            }
+
+            // Check CV Outer to GRB Outer
+            const connGRB = findMinDistanceConnection(sec["CV Outer"], sec["GRB Outer"]);
+            const grbEnclosed = isEnclosed(sec["CV Outer"], sec["GRB Outer"]);
+            if (!grbEnclosed || connGRB.dist < targetGRB) {
+                // Push GRB Outer outwards
+                const cx = sec["GRB Outer"].reduce((acc, p) => acc + p.x, 0) / sec["GRB Outer"].length;
+                const cy = sec["GRB Outer"].reduce((acc, p) => acc + p.y, 0) / sec["GRB Outer"].length;
+                
+                sec["GRB Outer"].forEach((pt, idx) => {
+                    const dx = pt.x - cx;
+                    const dy = pt.y - cy;
+                    const len = Math.sqrt(dx*dx + dy*dy);
+                    if (len > 0) {
+                        pt.x += (dx / len) * 0.00005;
+                        pt.y += (dy / len) * 0.00005;
+                    }
+                });
+                changed = true;
+            }
+
+            if (changed) pushHistoryState();
+            return changed;
+        }
+
+        // History Management (Undo / Redo / Reset)
+        function pushHistoryState() {
+            state.history = state.history.slice(0, state.historyIndex + 1);
+            state.history.push(JSON.parse(JSON.stringify(state.sectionsReduced)));
+            state.historyIndex = state.history.length - 1;
+            updateHistoryButtons();
+        }
+
+        function undo() {
+            if (state.historyIndex > 0) {
+                state.historyIndex--;
+                state.sectionsReduced = JSON.parse(JSON.stringify(state.history[state.historyIndex]));
+                renderMapReduced(true);
+                updateHistoryButtons();
+            }
+        }
+
+        function redo() {
+            if (state.historyIndex < state.history.length - 1) {
+                state.historyIndex++;
+                state.sectionsReduced = JSON.parse(JSON.stringify(state.history[state.historyIndex]));
+                renderMapReduced(true);
+                updateHistoryButtons();
+            }
+        }
+
+        function resetToInitialReduced() {
+            if (state.history.length > 0) {
+                state.historyIndex = 0;
+                state.sectionsReduced = JSON.parse(JSON.stringify(state.history[0]));
+                renderMapReduced(false);
+                updateHistoryButtons();
+            }
+        }
+
+        function updateHistoryButtons() {
+            document.getElementById('undoBtn').disabled = state.historyIndex <= 0;
+            document.getElementById('redoBtn').disabled = state.historyIndex >= state.history.length - 1;
+        }
+
+        // KML Export with Template & ExtendedData
+        function exportKMLFile() {
+            const sec = state.sectionsReduced;
+            const formatCoords = (pts) => pts.map(p => `${p.x},${p.y},${state.meta.altitude}`).join(' ');
+
+            const fgOuterStr = formatCoords(sec["FG Outer"]);
+            const cvOuterStr = formatCoords(sec["CV Outer"]);
+            const cvInnerStr = formatCoords(sec["CV Inner"]);
+            const grbOuterStr = formatCoords(sec["GRB Outer"]);
+            const grbInnerStr = formatCoords(sec["GRB Inner"]);
+
+            const generatedName = `flightarea_${state.meta.location}_${state.meta.speed}mds_${state.meta.altitude}m${state.meta.postfix ? '_' + state.meta.postfix : ''}`;
+
+            const kmlOutput = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+    <name>${generatedName}.kml</name>
+    <Style id="FlightGeographyStyle">
+        <LineStyle><color>ff00ff00</color><width>3</width></LineStyle>
+        <PolyStyle><color>4000ff00</color></PolyStyle>
+    </Style>
+    <Style id="ContingencyVolumeStyle">
+        <LineStyle><color>ff00a5ff</color><width>3</width></LineStyle>
+        <PolyStyle><color>4000a5ff</color></PolyStyle>
+    </Style>
+    <Style id="GroundRiskBufferStyle">
+        <LineStyle><color>ff0000ff</color><width>3</width></LineStyle>
+        <PolyStyle><color>400000ff</color></PolyStyle>
+    </Style>
+
+    <Placemark>
+        <name>Flight Geography</name>
+        <styleUrl>#FlightGeographyStyle</styleUrl>
+        <ExtendedData>
+            <Data name="Speed"><value>${state.meta.speed}</value></Data>
+            <Data name="Altitude"><value>${state.meta.altitude}</value></Data>
+        </ExtendedData>
+        <Polygon>
+            <outerBoundaryIs><LinearRing><coordinates>${fgOuterStr}</coordinates></LinearRing></outerBoundaryIs>
+        </Polygon>
+    </Placemark>
+
+    <Placemark>
+        <name>Contingency Volume</name>
+        <styleUrl>#ContingencyVolumeStyle</styleUrl>
+        <ExtendedData>
+            <Data name="Speed"><value>${state.meta.speed}</value></Data>
+            <Data name="Altitude"><value>${state.meta.altitude}</value></Data>
+        </ExtendedData>
+        <Polygon>
+            <outerBoundaryIs><LinearRing><coordinates>${cvOuterStr}</coordinates></LinearRing></outerBoundaryIs>
+            <innerBoundaryIs><LinearRing><coordinates>${cvInnerStr}</coordinates></LinearRing></innerBoundaryIs>
+        </Polygon>
+    </Placemark>
+
+    <Placemark>
+        <name>Ground Risk Buffer</name>
+        <styleUrl>#GroundRiskBufferStyle</styleUrl>
+        <ExtendedData>
+            <Data name="Speed"><value>${state.meta.speed}</value></Data>
+            <Data name="Altitude"><value>${state.meta.altitude}</value></Data>
+        </ExtendedData>
+        <Polygon>
+            <outerBoundaryIs><LinearRing><coordinates>${grbOuterStr}</coordinates></LinearRing></outerBoundaryIs>
+            <innerBoundaryIs><LinearRing><coordinates>${grbInnerStr}</coordinates></LinearRing></innerBoundaryIs>
+        </Polygon>
+    </Placemark>
+</Document>
+</kml>`;
+
+            const blob = new Blob([kmlOutput], { type: 'application/vnd.google-earth.kml+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${generatedName}.kml`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
+
+```
