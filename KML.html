@@ -11,8 +11,6 @@
     <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-    
-    <!-- Leaflet Path Dragging plugin (Inline logic used for native markers for reliability) -->
 
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -75,7 +73,7 @@
             </div>
             <div>
                 <h1 class="font-bold text-sm md:text-base text-white leading-tight">UAS Flight Area KML Processor</h1>
-                <p class="text-[11px] text-slate-400 hidden sm:block">Automatisierte Reduktion (max. 20 Punkte), Sicherheitsbereich-Invaranten & KML-Export</p>
+                <p class="text-[11px] text-slate-400 hidden sm:block">Automatisierte Reduktion (max. 20 Punkte), Linienabstands-Garantie & KML-Export</p>
             </div>
         </div>
 
@@ -140,6 +138,23 @@
                     </div>
                 </div>
 
+                <!-- Calculated Distances Panel -->
+                <div class="bg-indigo-950/40 border border-indigo-800/50 rounded-xl p-3 space-y-2">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
+                        <i data-lucide="ruler" class="w-4 h-4 text-indigo-400"></i> Berechnete Mindest-Linienabstände
+                    </h3>
+                    <div class="text-xs space-y-1.5">
+                        <div class="flex justify-between items-center bg-slate-900/90 p-2 rounded border border-slate-800">
+                            <span class="text-slate-400 text-[11px]">FG &rarr; CV Outer:</span>
+                            <span id="dist-fg-cv" class="font-mono text-indigo-300 font-semibold">- m</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-900/90 p-2 rounded border border-slate-800">
+                            <span class="text-slate-400 text-[11px]">CV Outer &rarr; GRB Outer:</span>
+                            <span id="dist-cv-grb" class="font-mono text-indigo-300 font-semibold">- m</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Layer Controls for Map 2 -->
                 <div class="space-y-3">
                     <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
@@ -179,7 +194,7 @@
                     <div class="pt-2">
                         <label class="flex items-center justify-between p-2.5 rounded-xl bg-indigo-950/40 border border-indigo-900/60 cursor-pointer hover:bg-indigo-900/30 transition">
                             <span class="text-xs font-medium text-indigo-200 flex items-center gap-2">
-                                <i data-lucide="eye" class="w-4 h-4 text-blue-400"></i> Original-Polygone auf Karte 2 anzeigen (Blau)
+                                <i data-lucide="eye" class="w-4 h-4 text-blue-400"></i> Original-Polygone auf Karte 2 (Blau)
                             </span>
                             <input type="checkbox" id="toggle-original-bg" checked class="rounded accent-indigo-500 w-4 h-4">
                         </label>
@@ -210,9 +225,9 @@
                     <div class="font-semibold text-slate-300 flex items-center gap-1">
                         <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400"></i> Reduktions-Garantie
                     </div>
-                    <p>• <b>FG & Inner-Gürtel</b> werden strikt <i>nach innen</i> verkleinert.</p>
-                    <p>• <b>Outer-Gürtel</b> werden <i>nach außen</i> gepuffert, um Flug- & Bodensicherheits-Grenzwerte einzuhalten.</p>
-                    <p>• Ziehen Sie die runden Punkte auf der rechten Karte, um Koordinaten manuell anzupassen.</p>
+                    <p>• <b>Kaskadierende Reduktion</b>: FG wird zuerst verkleinert, CV/GRB danach angepasst.</p>
+                    <p>• <b>Linienabstand</b>: Der Mindestabstand zwischen Liniensegmenten wird streng beibehalten.</p>
+                    <p>• <b>Synch-Dragging</b>: Verschieben innerer Punkte schiebt äußere Ringe automatisch mit.</p>
                 </div>
 
             </div>
@@ -258,7 +273,10 @@
                 postfix: ''
             },
             generatedName: '',
-            // Coordinates in [lat, lng, alt] or {lat, lng, alt}
+            calculatedDistances: {
+                fgToCvMeters: 0,
+                cvToGrbMeters: 0
+            },
             sections: {
                 fgOuter: [],
                 cvOuter: [],
@@ -278,95 +296,117 @@
             showOriginalBg: true
         };
 
-        // Leaflet Map Instances
-        let mapOriginal = null;
-        let mapReduced = null;
+        // Styling Config
+        const STYLES = {
+            fgOuter: { color: '#22c55e', weight: 3, fillOpacity: 0.25, label: 'Flight Geography Outer' },
+            cvOuter: { color: '#f97316', weight: 3, fillOpacity: 0.2, label: 'Contingency Volume Outer' },
+            cvInner: { color: '#f97316', weight: 1.5, fillOpacity: 0.1, dashArray: '4,4', label: 'Contingency Volume Inner' },
+            grbOuter: { color: '#ef4444', weight: 3, fillOpacity: 0.15, label: 'Ground Risk Buffer Outer' },
+            grbInner: { color: '#ef4444', weight: 1.5, fillOpacity: 0.05, dashArray: '4,4', label: 'Ground Risk Buffer Inner' },
+            bgOverlay: { color: '#3b82f6', weight: 1.5, fillOpacity: 0.05, dashArray: '2,4' }
+        };
 
-        // Leaflet Layer Groups
-        let layerGroupOriginal = null;
+        let mapOrig = null;
+        let mapRed = null;
+        let layerGroupOrig = null;
         let layerGroupReduced = null;
         let layerGroupBgOverlay = null;
 
-        // Colors per requirement
-        const STYLES = {
-            fgOuter:  { color: '#22c55e', weight: 4, fillOpacity: 0.2, label: 'Flight Geography Outer' },
-            cvOuter:  { color: '#f97316', weight: 4, fillOpacity: 0.15, label: 'Contingency Volume Outer' },
-            cvInner:  { color: '#fb923c', weight: 2, fillOpacity: 0.05, label: 'Contingency Volume Inner', dashArray: '4, 4' },
-            grbOuter: { color: '#ef4444', weight: 4, fillOpacity: 0.1, label: 'Ground Risk Buffer Outer' },
-            grbInner: { color: '#f87171', weight: 2, fillOpacity: 0.05, label: 'Ground Risk Buffer Inner', dashArray: '4, 4' },
-            
-            // Blue tones for original overlay on second map
-            bgOverlay: { color: '#3b82f6', weight: 2, dashArray: '6, 6', fillOpacity: 0.05 }
-        };
-
-        // Initialize App on DOM Load
-        window.addEventListener('DOMContentLoaded', () => {
+        window.onload = function() {
             lucide.createIcons();
-            initMaps();
-            setupEventListeners();
-        });
 
-        // Initialize Leaflet Maps
-        function initMaps() {
-            // Map 1: Original
-            mapOriginal = L.map('map-original', { zoomControl: true }).setView([51.1657, 10.4515], 6);
+            // Initialize Maps
+            mapOrig = L.map('map-original').setView([53.5461, 9.9660], 14);
+            mapRed = L.map('map-reduced').setView([53.5461, 9.9660], 14);
+
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors',
-                maxZoom: 19
-            }).addTo(mapOriginal);
-            layerGroupOriginal = L.layerGroup().addTo(mapOriginal);
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(mapOrig);
 
-            // Map 2: Reduced / Editable
-            mapReduced = L.map('map-reduced', { zoomControl: true }).setView([51.1657, 10.4515], 6);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors',
-                maxZoom: 19
-            }).addTo(mapReduced);
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(mapRed);
 
-            layerGroupBgOverlay = L.layerGroup().addTo(mapReduced);
-            layerGroupReduced = L.layerGroup().addTo(mapReduced);
+            // Sync Maps Zoom/Pan
+            mapOrig.sync && mapOrig.sync(mapRed);
+            mapRed.sync && mapRed.sync(mapOrig);
 
-            // Sync Map Pan & Zoom
-            let isSyncing = false;
-            const syncMaps = (sourceMap, targetMap) => {
-                if (isSyncing) return;
-                isSyncing = true;
-                targetMap.setView(sourceMap.getCenter(), sourceMap.getZoom(), { animate: false });
-                isSyncing = false;
-            };
+            layerGroupOrig = L.layerGroup().addTo(mapOrig);
+            layerGroupBgOverlay = L.layerGroup().addTo(mapRed);
+            layerGroupReduced = L.layerGroup().addTo(mapRed);
 
-            mapOriginal.on('move', () => syncMaps(mapOriginal, mapReduced));
-            mapReduced.on('move', () => syncMaps(mapReduced, mapOriginal));
-        }
-
-        function setupEventListeners() {
-            // File input
-            document.getElementById('kml-input').addEventListener('change', handleFileSelect);
-
-            // Sample Data Button
+            // Event Listeners
+            document.getElementById('kml-input').addEventListener('change', handleFileUpload);
             document.getElementById('load-sample-btn').addEventListener('click', loadSampleData);
-
-            // Export KML Button
             document.getElementById('export-kml-btn').addEventListener('click', exportKMLFile);
-
-            // Metadata inputs real-time update
-            ['meta-location', 'meta-speed', 'meta-altitude', 'meta-postfix'].forEach(id => {
-                document.getElementById(id).addEventListener('input', updateMetadataFromUI);
-            });
-
-            // Toggle background overlay on Map 2
             document.getElementById('toggle-original-bg').addEventListener('change', (e) => {
                 state.showOriginalBg = e.target.checked;
                 renderMapReduced();
             });
 
-            // Undo / Redo / Reset
             document.getElementById('undo-btn').addEventListener('click', undo);
             document.getElementById('redo-btn').addEventListener('click', redo);
             document.getElementById('reset-btn').addEventListener('click', resetToInitialReduced);
+
+            // Metadata inputs listeners
+            ['meta-location', 'meta-speed', 'meta-altitude', 'meta-postfix'].forEach(id => {
+                document.getElementById(id).addEventListener('input', updateGeneratedNameFromInputs);
+            });
+        };
+
+        // Geodesic distance in meters
+        function getDistanceMeters(p1, p2) {
+            const R = 6371000;
+            const dLat = (p2.lat - p1.lat) * Math.PI / 180;
+            const dLng = (p2.lng - p1.lng) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
+                      Math.sin(dLng/2) * Math.sin(dLng/2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
 
-        // Parse File Name Meta (DATE_LOCATION_20mds_120m_POSTFIX)
+        // Point-to-Segment (Line) Distance Calculation in Meters
+        function distanceToSegmentMeters(p, v, w) {
+            const l2 = (w.lat - v.lat) * (w.lat - v.lat) + (w.lng - v.lng) * (w.lng - v.lng);
+            if (l2 === 0) return getDistanceMeters(p, v);
+            let t = ((p.lat - v.lat) * (w.lat - v.lat) + (p.lng - v.lng) * (w.lng - v.lng)) / l2;
+            t = Math.max(0, Math.min(1, t));
+            const projection = {
+                lat: v.lat + t * (w.lat - v.lat),
+                lng: v.lng + t * (w.lng - v.lng)
+            };
+            return getDistanceMeters(p, projection);
+        }
+
+        // Distance between Point and Polygon Boundary Lines
+        function distanceToPolygonLinesMeters(point, polygon) {
+            if (!polygon || polygon.length < 2) return Infinity;
+            let minDistance = Infinity;
+            for (let i = 0; i < polygon.length - 1; i++) {
+                const d = distanceToSegmentMeters(point, polygon[i], polygon[i + 1]);
+                if (d < minDistance) minDistance = d;
+            }
+            return minDistance;
+        }
+
+        // Compute minimum gap between lines of two polygons
+        function computeMinPolygonGap(polyA, polyB) {
+            if (!polyA || !polyB || polyA.length < 2 || polyB.length < 2) return 0;
+            let minGap = Infinity;
+            for (let ptA of polyA) {
+                const d = distanceToPolygonLinesMeters(ptA, polyB);
+                if (d < minGap) minGap = d;
+            }
+            for (let ptB of polyB) {
+                const d = distanceToPolygonLinesMeters(ptB, polyA);
+                if (d < minGap) minGap = d;
+            }
+            return minGap === Infinity ? 0 : minGap;
+        }
+
+        // Filename Metadata Extraction
         function parseFileNameMeta(fileName) {
             const baseName = fileName.replace(/\.[^/.]+$/, "");
             let location = "";
@@ -374,20 +414,16 @@
             let altitude = 0;
             let postfix = "";
 
-            // Regex according to PowerShell script: ^(.*?)_(\d+)mds_(\d+)m(?:_(.*))?$
-            const regex = /^(.*?)_(\d+)mds_(\d+)m(?:_(.*))?$/i;
-            const match = baseName.match(regex);
-
+            const match = baseName.match(/^(.*?)_(\d+)mds_(\d+)m(?:_(.*))?$/i);
             if (match) {
                 const beforeSpeed = match[1];
-                speed = parseInt(match[2], 10) || 0;
-                altitude = parseFloat(match[3]) || 0;
+                speed = parseInt(match[2], 10);
+                altitude = parseInt(match[3], 10);
                 postfix = match[4] || "";
 
-                // Remove DATE prefix if present (DATE_LOCATION -> LOCATION)
-                const parts = beforeSpeed.split('_');
+                const parts = beforeSpeed.split("_");
                 if (parts.length >= 2) {
-                    location = parts.slice(1).join('_');
+                    location = parts.slice(1).join("_");
                 } else {
                     location = beforeSpeed;
                 }
@@ -398,97 +434,26 @@
             return { location, speed, altitude, postfix };
         }
 
-        // Build Generated KML Name
-        function computeGeneratedName(meta) {
-            let name = `flightarea_${meta.location || 'unknown'}_${meta.speed || 0}mds_${meta.altitude || 0}m`;
-            if (meta.postfix && meta.postfix.trim() !== '') {
-                name += `_${meta.postfix.trim()}`;
-            }
-            return name;
-        }
-
-        function updateMetadataFromUI() {
-            state.extracted.location = document.getElementById('meta-location').value;
+        function updateGeneratedNameFromInputs() {
+            state.extracted.location = document.getElementById('meta-location').value || 'location';
             state.extracted.speed = parseInt(document.getElementById('meta-speed').value, 10) || 0;
-            state.extracted.altitude = parseFloat(document.getElementById('meta-altitude').value) || 0;
-            state.extracted.postfix = document.getElementById('meta-postfix').value;
+            state.extracted.altitude = parseInt(document.getElementById('meta-altitude').value, 10) || 0;
+            state.extracted.postfix = document.getElementById('meta-postfix').value || '';
 
-            state.generatedName = computeGeneratedName(state.extracted);
-            document.getElementById('meta-generated-name').innerText = state.generatedName;
-
-            // Update altitudes in all loaded coordinates
-            applyAltitudeToSections(state.extracted.altitude);
-        }
-
-        function applyAltitudeToSections(alt) {
-            Object.keys(state.sections).forEach(key => {
-                state.sections[key] = state.sections[key].map(pt => ({ ...pt, alt }));
-            });
-            Object.keys(state.reducedSections).forEach(key => {
-                state.reducedSections[key] = state.reducedSections[key].map(pt => ({ ...pt, alt }));
-            });
-        }
-
-        // Parse KML XML String & extract standard sections
-        function parseKMLContent(xmlText) {
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-
-            function getBoundaryCoords(sectionName, boundaryType) {
-                const placemarks = xmlDoc.getElementsByTagName("Placemark");
-                for (let pm of placemarks) {
-                    const nameElem = pm.getElementsByTagName("name")[0];
-                    if (nameElem && nameElem.textContent.trim().toLowerCase() === sectionName.toLowerCase()) {
-                        const boundary = pm.getElementsByTagName(boundaryType)[0];
-                        if (boundary) {
-                            const coordElem = boundary.getElementsByTagName("coordinates")[0];
-                            if (coordElem) {
-                                return parseCoordString(coordElem.textContent);
-                            }
-                        }
-                    }
-                }
-                return [];
+            let genName = `flightarea_${state.extracted.location}_${state.extracted.speed}mds_${state.extracted.altitude}m`;
+            if (state.extracted.postfix) {
+                genName += `_${state.extracted.postfix}`;
             }
-
-            return {
-                fgOuter:  getBoundaryCoords("Flight Geography", "outerBoundaryIs"),
-                cvOuter:  getBoundaryCoords("Contingency Volume", "outerBoundaryIs"),
-                cvInner:  getBoundaryCoords("Contingency Volume", "innerBoundaryIs"),
-                grbOuter: getBoundaryCoords("Ground Risk Buffer", "outerBoundaryIs"),
-                grbInner: getBoundaryCoords("Ground Risk Buffer", "innerBoundaryIs")
-            };
+            state.generatedName = genName;
+            document.getElementById('meta-generated-name').innerText = genName;
         }
 
-        // Convert KML coordinate string ("lng,lat,alt lng,lat,alt ...") to Array of {lat, lng, alt}
-        function parseCoordString(coordStr) {
-            if (!coordStr) return [];
-            const points = [];
-            const pairs = coordStr.trim().split(/\s+/);
-
-            for (let pair of pairs) {
-                if (!pair) continue;
-                const parts = pair.split(',');
-                if (parts.length >= 2) {
-                    const lng = parseFloat(parts[0]);
-                    const lat = parseFloat(parts[1]);
-                    const alt = parts.length >= 3 ? parseFloat(parts[2]) : 0;
-                    if (!isNaN(lat) && !isNaN(lng)) {
-                        points.push({ lat, lng, alt });
-                    }
-                }
-            }
-            return points;
-        }
-
-        // Handle File Selection
-        function handleFileSelect(e) {
+        function handleFileUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
 
             state.fileName = file.name;
-            const meta = parseFileNameMeta(file.name);
-            state.extracted = meta;
+            state.extracted = parseFileNameMeta(file.name);
 
             const reader = new FileReader();
             reader.onload = function(evt) {
@@ -497,173 +462,233 @@
             reader.readAsText(file);
         }
 
-        // Main Data Processing Pipeline
         function processKMLData(xmlText) {
-            const parsedSections = parseKMLContent(xmlText);
-            
-            // Check if any section was found
-            const totalFound = Object.values(parsedSections).reduce((acc, arr) => acc + arr.length, 0);
-            if (totalFound === 0) {
-                alert("Keine gültigen Placemarks ('Flight Geography', 'Contingency Volume', 'Ground Risk Buffer') in der KML Datei gefunden!");
-                return;
-            }
-
-            state.sections = parsedSections;
-
-            // Fill Metadata Panel UI
             document.getElementById('file-name-display').innerText = state.fileName;
             document.getElementById('meta-location').value = state.extracted.location;
             document.getElementById('meta-speed').value = state.extracted.speed;
             document.getElementById('meta-altitude').value = state.extracted.altitude;
             document.getElementById('meta-postfix').value = state.extracted.postfix;
+            updateGeneratedNameFromInputs();
 
-            updateMetadataFromUI();
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
 
-            // Perform Smart Coordinate Reduction (max 20 points per boundary with safety bounds)
-            reduceAllSections();
+            const getSectionCoords = (sectionName, boundaryType) => {
+                const placemarks = xmlDoc.getElementsByTagName("Placemark");
+                for (let i = 0; i < placemarks.length; i++) {
+                    const nameNode = placemarks[i].getElementsByTagName("name")[0];
+                    if (nameNode && nameNode.textContent.trim().toLowerCase() === sectionName.toLowerCase()) {
+                        const boundaryNodes = placemarks[i].getElementsByTagName(boundaryType);
+                        if (boundaryNodes.length > 0) {
+                            const coordsNode = boundaryNodes[0].getElementsByTagName("coordinates")[0];
+                            if (coordsNode) {
+                                return parseCoordinatesStr(coordsNode.textContent, state.extracted.altitude);
+                            }
+                        }
+                    }
+                }
+                return [];
+            };
 
-            // Reset history
+            state.sections.fgOuter = getSectionCoords("Flight Geography", "outerBoundaryIs");
+            state.sections.cvOuter = getSectionCoords("Contingency Volume", "outerBoundaryIs");
+            state.sections.cvInner = getSectionCoords("Contingency Volume", "innerBoundaryIs");
+            state.sections.grbOuter = getSectionCoords("Ground Risk Buffer", "outerBoundaryIs");
+            state.sections.grbInner = getSectionCoords("Ground Risk Buffer", "innerBoundaryIs");
+
+            // Calculate Original Line Gaps
+            state.calculatedDistances.fgToCvMeters = Math.round(computeMinPolygonGap(state.sections.fgOuter, state.sections.cvOuter));
+            state.calculatedDistances.cvToGrbMeters = Math.round(computeMinPolygonGap(state.sections.cvOuter, state.sections.grbOuter));
+
+            document.getElementById('dist-fg-cv').innerText = `${state.calculatedDistances.fgToCvMeters} m`;
+            document.getElementById('dist-cv-grb').innerText = `${state.calculatedDistances.cvToGrbMeters} m`;
+
+            // Cascading Point Reduction Logic
+            reduceAllSectionsCascading();
+
+            // Render Map 1
+            renderMapOriginal();
+
+            // History Stack Reset & Render Map 2
             state.history = [];
             state.historyIndex = -1;
             pushHistoryState();
 
-            // Render both maps
-            renderMapOriginal();
             renderMapReduced();
-            fitMapsToData();
-
-            // Enable Export
             document.getElementById('export-kml-btn').disabled = false;
-            document.getElementById('reset-btn').disabled = false;
         }
 
-        // Geometric Polygon Point Reduction Algorithm (Max 20 Points)
-        // Respects Inner contraction (FG, CV Inner, GRB Inner) vs Outer expansion (CV Outer, GRB Outer)
-        function reduceAllSections() {
+        function parseCoordinatesStr(coordsStr, targetAlt) {
+            const result = [];
+            const pairs = coordsStr.trim().split(/\s+/);
+            pairs.forEach(pair => {
+                if (!pair) return;
+                const parts = pair.split(',');
+                if (parts.length >= 2) {
+                    const lng = parseFloat(parts[0]);
+                    const lat = parseFloat(parts[1]);
+                    const alt = parts.length > 2 ? parseFloat(parts[2]) : targetAlt;
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        result.push({ lat, lng, alt });
+                    }
+                }
+            });
+            return result;
+        }
+
+        function reduceAllSectionsCascading() {
+            // Visvalingam simplification to max 20 points
+            const redFG = simplifyPolygonVisvalingam(state.sections.fgOuter, 20);
+            const redFG_Inward = contractPolygonInwards(redFG, 0.003);
+
+            const redCV = simplifyPolygonVisvalingam(state.sections.cvOuter, 20);
+            const fgToCvDist = state.calculatedDistances.fgToCvMeters || 15;
+            const redCV_Outward = expandPolygonOutwardsToKeepLineGap(redFG_Inward, redCV, fgToCvDist);
+
+            const redGRB = simplifyPolygonVisvalingam(state.sections.grbOuter, 20);
+            const cvToGrbDist = state.calculatedDistances.cvToGrbMeters || 20;
+            const redGRB_Outward = expandPolygonOutwardsToKeepLineGap(redCV_Outward, redGRB, cvToGrbDist);
+
             state.reducedSections = {
-                fgOuter: reducePolygonPoints(state.sections.fgOuter, 20, 'inner'),
-                cvOuter: reducePolygonPoints(state.sections.cvOuter, 20, 'outer'),
-                cvInner: reducePolygonPoints(state.sections.cvInner, 20, 'inner'),
-                grbOuter: reducePolygonPoints(state.sections.grbOuter, 20, 'outer'),
-                grbInner: reducePolygonPoints(state.sections.grbInner, 20, 'inner')
+                fgOuter: redFG_Inward,
+                cvOuter: redCV_Outward,
+                cvInner: JSON.parse(JSON.stringify(redFG_Inward)),
+                grbOuter: redGRB_Outward,
+                grbInner: JSON.parse(JSON.stringify(redCV_Outward))
             };
         }
 
-        function reducePolygonPoints(points, maxPoints = 20, direction = 'inner') {
-            if (!points || points.length <= maxPoints) {
-                return points.map(p => ({ ...p }));
-            }
-
-            // Visvalingam-Whyatt Simplification algorithm
+        function simplifyPolygonVisvalingam(points, targetCount) {
+            if (!points || points.length <= targetCount) return points.map(p => ({ ...p }));
             let pts = points.map(p => ({ ...p }));
-            
-            // Remove duplicate closing point if present for reduction logic
-            let isClosed = false;
             if (pts.length > 2 && pts[0].lat === pts[pts.length-1].lat && pts[0].lng === pts[pts.length-1].lng) {
-                isClosed = true;
                 pts.pop();
             }
 
-            while (pts.length > maxPoints) {
+            while (pts.length > Math.max(3, targetCount - 1)) {
                 let minArea = Infinity;
-                let removeIdx = -1;
-
+                let minIndex = -1;
                 for (let i = 0; i < pts.length; i++) {
                     const prev = pts[(i - 1 + pts.length) % pts.length];
                     const curr = pts[i];
                     const next = pts[(i + 1) % pts.length];
-
-                    // Triangle area calculation in geo coordinates
-                    const area = Math.abs(
-                        (prev.lng * (curr.lat - next.lat) +
-                         curr.lng * (next.lat - prev.lat) +
-                         next.lng * (prev.lat - curr.lat)) / 2.0
-                    );
-
+                    const area = Math.abs((prev.lng * (curr.lat - next.lat) + curr.lng * (next.lat - prev.lat) + next.lng * (prev.lat - curr.lat)) / 2.0);
                     if (area < minArea) {
                         minArea = area;
-                        removeIdx = i;
+                        minIndex = i;
                     }
                 }
-
-                if (removeIdx !== -1) {
-                    pts.splice(removeIdx, 1);
-                } else {
-                    break;
-                }
+                if (minIndex !== -1) {
+                    pts.splice(minIndex, 1);
+                } else break;
             }
-
-            // Outer Expansion Offset for Outer Volumes to ensure 100% containment
-            if (direction === 'outer') {
-                const centerLat = pts.reduce((sum, p) => sum + p.lat, 0) / pts.length;
-                const centerLng = pts.reduce((sum, p) => sum + p.lng, 0) / pts.length;
-
-                // Scale outwards by ~0.5% away from centroid to guarantee outer boundary bounds
-                pts = pts.map(p => {
-                    const dLat = p.lat - centerLat;
-                    const dLng = p.lng - centerLng;
-                    return {
-                        lat: p.lat + dLat * 0.008,
-                        lng: p.lng + dLng * 0.008,
-                        alt: p.alt
-                    };
-                });
-            } else {
-                // Inner contraction offset for Inner Volumes
-                const centerLat = pts.reduce((sum, p) => sum + p.lat, 0) / pts.length;
-                const centerLng = pts.reduce((sum, p) => sum + p.lng, 0) / pts.length;
-
-                pts = pts.map(p => {
-                    const dLat = p.lat - centerLat;
-                    const dLng = p.lng - centerLng;
-                    return {
-                        lat: p.lat - dLat * 0.004,
-                        lng: p.lng - dLng * 0.004,
-                        alt: p.alt
-                    };
-                });
-            }
-
-            if (isClosed) {
-                pts.push({ ...pts[0] });
-            }
-
+            pts.push({ ...pts[0] });
             return pts;
         }
 
-        // Render Map 1 (Original Data)
-        function renderMapOriginal() {
-            layerGroupOriginal.clearLayers();
-            let totalPts = 0;
+        function contractPolygonInwards(pts, factor) {
+            if (pts.length < 3) return pts;
+            const centerLat = pts.reduce((s, p) => s + p.lat, 0) / pts.length;
+            const centerLng = pts.reduce((s, p) => s + p.lng, 0) / pts.length;
+            return pts.map(p => ({
+                lat: p.lat + (centerLat - p.lat) * factor,
+                lng: p.lng + (centerLng - p.lng) * factor,
+                alt: p.alt
+            }));
+        }
 
-            const order = ['grbOuter', 'cvOuter', 'fgOuter', 'grbInner', 'cvInner'];
-            order.forEach(key => {
+        function expandPolygonOutwardsToKeepLineGap(innerPoly, outerPolySimplified, requiredGapMeters) {
+            if (!innerPoly || innerPoly.length < 2) return outerPolySimplified;
+            const centerLat = innerPoly.reduce((sum, p) => sum + p.lat, 0) / innerPoly.length;
+            const centerLng = innerPoly.reduce((sum, p) => sum + p.lng, 0) / innerPoly.length;
+
+            let result = outerPolySimplified.map(p => ({ ...p }));
+
+            for (let pass = 0; pass < 4; pass++) {
+                for (let i = 0; i < result.length; i++) {
+                    let currentPoint = result[i];
+                    let minGap = distanceToPolygonLinesMeters(currentPoint, innerPoly);
+
+                    if (minGap < requiredGapMeters + 2) {
+                        const diffMeters = (requiredGapMeters + 2 - minGap);
+                        const dLat = currentPoint.lat - centerLat;
+                        const dLng = currentPoint.lng - centerLng;
+                        const len = Math.sqrt(dLat * dLat + dLng * dLng) || 1;
+
+                        const latOffset = (diffMeters / 111000) * (dLat / len);
+                        const lngOffset = (diffMeters / (111000 * Math.cos(centerLat * Math.PI / 180))) * (dLng / len);
+
+                        result[i].lat += latOffset;
+                        result[i].lng += lngOffset;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        function handleMarkerDrag(key, index, oldPos, newPos) {
+            state.reducedSections[key][index].lat = newPos.lat;
+            state.reducedSections[key][index].lng = newPos.lng;
+
+            const pts = state.reducedSections[key];
+            if (index === 0 && pts.length > 2 && pts[pts.length - 1].lat === oldPos.lat) {
+                pts[pts.length - 1].lat = newPos.lat;
+                pts[pts.length - 1].lng = newPos.lng;
+            }
+
+            // Synchronize Inner/Outer duplicates
+            if (key === 'fgOuter') {
+                state.reducedSections.cvInner = JSON.parse(JSON.stringify(state.reducedSections.fgOuter));
+            } else if (key === 'cvOuter') {
+                state.reducedSections.grbInner = JSON.parse(JSON.stringify(state.reducedSections.cvOuter));
+            }
+
+            // Cascade outwards
+            const fgToCvDist = state.calculatedDistances.fgToCvMeters || 15;
+            state.reducedSections.cvOuter = expandPolygonOutwardsToKeepLineGap(state.reducedSections.fgOuter, state.reducedSections.cvOuter, fgToCvDist);
+            state.reducedSections.cvInner = JSON.parse(JSON.stringify(state.reducedSections.fgOuter));
+
+            const cvToGrbDist = state.calculatedDistances.cvToGrbMeters || 20;
+            state.reducedSections.grbOuter = expandPolygonOutwardsToKeepLineGap(state.reducedSections.cvOuter, state.reducedSections.grbOuter, cvToGrbDist);
+            state.reducedSections.grbInner = JSON.parse(JSON.stringify(state.reducedSections.cvOuter));
+        }
+
+        function renderMapOriginal() {
+            layerGroupOrig.clearLayers();
+            let totalPts = 0;
+            const bounds = [];
+
+            Object.keys(state.sections).forEach(key => {
                 const pts = state.sections[key];
                 if (!pts || pts.length === 0) return;
-
                 totalPts += pts.length;
+
                 const latLngs = pts.map(p => [p.lat, p.lng]);
+                bounds.push(...latLngs);
+
                 const poly = L.polygon(latLngs, {
                     color: STYLES[key].color,
                     weight: STYLES[key].weight,
                     fillOpacity: STYLES[key].fillOpacity,
                     dashArray: STYLES[key].dashArray || null
                 });
-                poly.bindTooltip(`<b>${STYLES[key].label}</b><br>${pts.length} Punkte`);
-                layerGroupOriginal.addLayer(poly);
+                layerGroupOrig.addLayer(poly);
             });
 
             document.getElementById('orig-points-badge').innerText = `${totalPts} Punkte total`;
+            if (bounds.length > 0) {
+                mapOrig.fitBounds(L.latLngBounds(bounds), { padding: [20, 20] });
+                mapRed.fitBounds(L.latLngBounds(bounds), { padding: [20, 20] });
+            }
         }
 
-        // Render Map 2 (Reduced + Drag & Drop Handles + Background Overlay)
         function renderMapReduced() {
             layerGroupReduced.clearLayers();
             layerGroupBgOverlay.clearLayers();
 
             let totalPts = 0;
 
-            // Render Blue Background Overlay (Original High-Res) if enabled
             if (state.showOriginalBg) {
                 Object.keys(state.sections).forEach(key => {
                     const pts = state.sections[key];
@@ -674,7 +699,6 @@
                 });
             }
 
-            // Render Reduced Polygons & Interactive Markers
             const order = ['grbOuter', 'cvOuter', 'fgOuter', 'grbInner', 'cvInner'];
             
             order.forEach(key => {
@@ -684,7 +708,6 @@
                 totalPts += pts.length;
                 const latLngs = pts.map(p => [p.lat, p.lng]);
 
-                // Render Polygon line
                 const poly = L.polygon(latLngs, {
                     color: STYLES[key].color,
                     weight: STYLES[key].weight,
@@ -693,7 +716,6 @@
                 });
                 layerGroupReduced.addLayer(poly);
 
-                // Add Drag & Drop Vertex Markers
                 pts.forEach((pt, index) => {
                     const iconHtml = `<div class="marker-pin" style="background-color: ${STYLES[key].color}"></div>`;
                     const customIcon = L.divIcon({
@@ -710,18 +732,10 @@
 
                     marker.bindTooltip(`${STYLES[key].label} (#${index + 1})`, { direction: 'top' });
 
-                    // Drag Events
+                    const oldPos = { lat: pt.lat, lng: pt.lng };
                     marker.on('dragend', (e) => {
                         const newPos = e.target.getLatLng();
-                        state.reducedSections[key][index].lat = newPos.lat;
-                        state.reducedSections[key][index].lng = newPos.lng;
-
-                        // Keep closed loop synced if first/last point
-                        if (index === 0 && pts.length > 2 && pts[pts.length - 1].lat === pt.lat) {
-                            state.reducedSections[key][pts.length - 1].lat = newPos.lat;
-                            state.reducedSections[key][pts.length - 1].lng = newPos.lng;
-                        }
-
+                        handleMarkerDrag(key, index, oldPos, newPos);
                         pushHistoryState();
                         renderMapReduced();
                     });
@@ -730,43 +744,26 @@
                 });
             });
 
-            // Update Badges & Counts
             document.getElementById('reduced-points-badge').innerText = `${totalPts} Punkte total`;
             document.getElementById('count-fg').innerText = `${state.reducedSections.fgOuter.length} Pkt`;
             document.getElementById('count-cv').innerText = `${state.reducedSections.cvOuter.length + state.reducedSections.cvInner.length} Pkt`;
             document.getElementById('count-grb').innerText = `${state.reducedSections.grbOuter.length + state.reducedSections.grbInner.length} Pkt`;
         }
 
-        // Fit map views to loaded polygon bounds
-        function fitMapsToData() {
-            const allPts = [];
-            Object.values(state.sections).forEach(arr => {
-                arr.forEach(p => allPts.push([p.lat, p.lng]));
-            });
-            if (allPts.length > 0) {
-                const bounds = L.latLngBounds(allPts);
-                mapOriginal.fitBounds(bounds, { padding: [25, 25] });
-                mapReduced.fitBounds(bounds, { padding: [25, 25] });
-            }
-        }
-
-        // Undo / Redo / Reset History System
+        // History Undo/Redo/Reset
         function pushHistoryState() {
-            // Truncate redo history
-            state.history = state.history.slice(0, state.historyIndex + 1);
-            
-            // Deep clone reducedSections
-            const clone = JSON.parse(JSON.stringify(state.reducedSections));
-            state.history.push(clone);
+            if (state.historyIndex < state.history.length - 1) {
+                state.history = state.history.slice(0, state.historyIndex + 1);
+            }
+            state.history.push(JSON.stringify(state.reducedSections));
             state.historyIndex = state.history.length - 1;
-
             updateHistoryButtons();
         }
 
         function undo() {
             if (state.historyIndex > 0) {
                 state.historyIndex--;
-                state.reducedSections = JSON.parse(JSON.stringify(state.history[state.historyIndex]));
+                state.reducedSections = JSON.parse(state.history[state.historyIndex]);
                 renderMapReduced();
                 updateHistoryButtons();
             }
@@ -775,26 +772,25 @@
         function redo() {
             if (state.historyIndex < state.history.length - 1) {
                 state.historyIndex++;
-                state.reducedSections = JSON.parse(JSON.stringify(state.history[state.historyIndex]));
+                state.reducedSections = JSON.parse(state.history[state.historyIndex]);
                 renderMapReduced();
                 updateHistoryButtons();
             }
         }
 
         function resetToInitialReduced() {
-            if (confirm("Möchten Sie alle manuellen Punkt-Verschiebungen auf den reduzierten Anfangszustand zurücksetzen?")) {
-                reduceAllSections();
-                pushHistoryState();
-                renderMapReduced();
-            }
+            reduceAllSectionsCascading();
+            pushHistoryState();
+            renderMapReduced();
         }
 
         function updateHistoryButtons() {
-            document.getElementById('undo-btn').disabled = (state.historyIndex <= 0);
-            document.getElementById('redo-btn').disabled = (state.historyIndex >= state.history.length - 1);
+            document.getElementById('undo-btn').disabled = state.historyIndex <= 0;
+            document.getElementById('redo-btn').disabled = state.historyIndex >= state.history.length - 1;
+            document.getElementById('reset-btn').disabled = state.history.length <= 1;
         }
 
-        // KML Template Export according to PowerShell script structure
+        // Export KML with ExtendedData
         function exportKMLFile() {
             const formattedName = state.generatedName;
             const speed = state.extracted.speed;
@@ -813,24 +809,50 @@
 		<Data name="Speed">
 			<value>${speed}</value>
 		</Data>
+		<Data name="Altitude">
+			<value>${alt}</value>
+		</Data>
 	</ExtendedData>
 	<Style id="fgStyle">
-		<LineStyle><color>ff00b020</color><width>4</width></LineStyle>
-		<PolyStyle><color>4000b020</color></PolyStyle>
+		<LineStyle>
+			<color>ff00b020</color>
+			<width>4</width>
+		</LineStyle>
+		<PolyStyle>
+			<color>4000b020</color>
+		</PolyStyle>
 	</Style>
 	<Style id="cvStyle">
-		<LineStyle><color>ff0088ff</color><width>4</width></LineStyle>
-		<PolyStyle><color>300088ff</color></PolyStyle>
+		<LineStyle>
+			<color>ff0088ff</color>
+			<width>4</width>
+		</LineStyle>
+		<PolyStyle>
+			<color>300088ff</color>
+		</PolyStyle>
 	</Style>
 	<Style id="grbStyle">
-		<LineStyle><color>ff0000ff</color><width>4</width></LineStyle>
-		<PolyStyle><color>250000ff</color></PolyStyle>
+		<LineStyle>
+			<color>ff0000ff</color>
+			<width>4</width>
+		</LineStyle>
+		<PolyStyle>
+			<color>250000ff</color>
+		</PolyStyle>
 	</Style>
 	<Folder>
 		<name>UAS Operational Volume</name>
 		<Placemark>
 			<name>Flight Geography</name>
 			<styleUrl>#fgStyle</styleUrl>
+			<ExtendedData>
+				<Data name="Speed">
+					<value>${speed}</value>
+				</Data>
+				<Data name="Altitude">
+					<value>${alt}</value>
+				</Data>
+			</ExtendedData>
 			<Polygon>
 				<altitudeMode>relativeToGround</altitudeMode>
 				<outerBoundaryIs>
@@ -843,6 +865,14 @@
 		<Placemark>
 			<name>Contingency Volume</name>
 			<styleUrl>#cvStyle</styleUrl>
+			<ExtendedData>
+				<Data name="Speed">
+					<value>${speed}</value>
+				</Data>
+				<Data name="Altitude">
+					<value>${alt}</value>
+				</Data>
+			</ExtendedData>
 			<Polygon>
 				<altitudeMode>relativeToGround</altitudeMode>
 				<outerBoundaryIs>
@@ -860,6 +890,14 @@
 		<Placemark>
 			<name>Ground Risk Buffer</name>
 			<styleUrl>#grbStyle</styleUrl>
+			<ExtendedData>
+				<Data name="Speed">
+					<value>${speed}</value>
+				</Data>
+				<Data name="Altitude">
+					<value>${alt}</value>
+				</Data>
+			</ExtendedData>
 			<Polygon>
 				<altitudeMode>relativeToGround</altitudeMode>
 				<outerBoundaryIs>
@@ -878,7 +916,6 @@
 </Document>
 </kml>`;
 
-            // Trigger Download
             const blob = new Blob([kmlTemplate], { type: 'application/vnd.google-earth.kml+xml;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -890,12 +927,10 @@
             URL.revokeObjectURL(url);
         }
 
-        // Load Synthetic Sample Data for immediate testing
         function loadSampleData() {
             state.fileName = "20260327_HamburgPort_25mds_150m_UASZone.kml";
             state.extracted = parseFileNameMeta(state.fileName);
 
-            // Generate synthetic polygon data for test
             const baseLat = 53.5461;
             const baseLng = 9.9660;
 
